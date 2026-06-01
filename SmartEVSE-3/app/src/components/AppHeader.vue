@@ -12,14 +12,6 @@ const sidebarOpen = defineModel<boolean>('open', { default: false })
 const store = useEvseStore()
 const route = useRoute()
 
-// The connection panel (host field + mDNS detect) only makes sense in dev,
-// where the Vite proxy lets the browser reach a device cross-origin. When the
-// page is served by the device itself (any production build) it's same-origin,
-// so there's nothing to configure — hide the whole thing.
-const isDev = import.meta.env.DEV
-
-const panelOpen = ref(false)
-const hostDraft = ref(store.host)
 const rebooting = ref(false)
 
 async function onReboot() {
@@ -44,16 +36,6 @@ const updatedLabel = computed(() => {
 })
 
 const pageTitle = computed(() => route.meta.title ?? 'SmartEVSE')
-
-function applyHost() {
-  store.setHost(hostDraft.value)
-  panelOpen.value = false
-}
-
-function togglePanel() {
-  hostDraft.value = store.host
-  panelOpen.value = !panelOpen.value
-}
 
 function togglePolling() {
   if (store.polling) store.pausePolling()
@@ -111,15 +93,6 @@ function togglePolling() {
           </svg>
           <span class="hidden sm:inline">Refresh</span>
         </button>
-        <button v-if="isDev" class="btn btn-sm" :class="{ 'btn-primary': panelOpen }" @click="togglePanel">
-          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 6.9 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 5 6.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
-            />
-          </svg>
-          <span class="hidden sm:inline">Connection</span>
-        </button>
         <button
           class="btn btn-sm btn-danger"
           :disabled="rebooting"
@@ -134,55 +107,5 @@ function togglePolling() {
         </button>
       </div>
     </div>
-
-    <!-- Connection panel -->
-    <Transition
-      enter-active-class="transition duration-150 ease-out"
-      enter-from-class="opacity-0 -translate-y-2"
-      leave-active-class="transition duration-100 ease-in"
-      leave-to-class="opacity-0 -translate-y-2"
-    >
-      <div v-if="isDev && panelOpen" class="border-t border-white/10 bg-slate-900/80 backdrop-blur">
-        <div class="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-          <div class="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-            <div>
-              <label class="field-label" for="host">Device address</label>
-              <input
-                id="host"
-                v-model="hostDraft"
-                class="input"
-                placeholder="SmartEVSE-1234.local or 192.168.1.50 (empty = same origin)"
-                autocomplete="off"
-                spellcheck="false"
-                @keyup.enter="applyHost"
-              />
-            </div>
-            <button class="btn btn-primary" @click="applyHost">Connect</button>
-            <button class="btn" :disabled="store.detecting" @click="store.detect()">
-              <span
-                v-if="store.detecting"
-                class="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-              />
-              {{ store.detecting ? 'Detecting…' : 'Auto-detect (mDNS)' }}
-            </button>
-          </div>
-          <p class="mt-3 text-xs text-slate-400">
-            <template v-if="store.polling">
-              Currently polling <span class="font-semibold text-slate-200">{{ store.displayHost }}</span>
-              every {{ Math.round(store.pollIntervalMs / 1000) }}s.
-            </template>
-            <template v-else>
-              Polling <span class="font-semibold text-amber-300">paused</span> —
-              <span class="font-semibold text-slate-200">{{ store.displayHost }}</span> won't refresh
-              automatically. Use Resume or Refresh.
-            </template>
-            Leave empty when this page is served by the SmartEVSE itself (same origin).
-            Auto-detect probes <code class="text-slate-300">SmartEVSE-&lt;serial&gt;.local</code> via your OS's mDNS resolver.
-            Pointing at another device by IP is cross-origin and needs the Vite dev proxy — see the README.
-          </p>
-          <p v-if="store.lastError" class="mt-2 text-xs text-rose-300">{{ store.lastError }}</p>
-        </div>
-      </div>
-    </Transition>
   </header>
 </template>

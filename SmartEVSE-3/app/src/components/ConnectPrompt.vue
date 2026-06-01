@@ -13,13 +13,10 @@ const store = useEvseStore()
     <div v-else class="max-w-md space-y-3">
       <h2 class="text-lg font-semibold">No device connected</h2>
       <p class="text-sm text-slate-400">
-        {{ store.lastError || 'Set the device address or auto-detect via mDNS using the Connection button above.' }}
+        {{ store.lastError || `Could not reach ${store.displayHost}.` }}
       </p>
       <div class="flex justify-center gap-2">
-        <button class="btn btn-primary" :disabled="store.detecting" @click="store.detect()">
-          {{ store.detecting ? 'Detecting…' : 'Auto-detect (mDNS)' }}
-        </button>
-        <button class="btn" @click="store.refreshNow()">Retry</button>
+        <button class="btn btn-primary" @click="store.refreshNow()">Retry</button>
       </div>
     </div>
   </div>

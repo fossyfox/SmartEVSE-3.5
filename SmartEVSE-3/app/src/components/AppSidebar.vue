@@ -11,6 +11,21 @@ const open = defineModel<boolean>('open', { default: false })
 const store = useEvseStore()
 const route = useRoute()
 
+// In dev the app is served by Vite, not the device, so the firmware's Classic
+// UI (/index.html) isn't reachable — following the link would just reload this
+// SPA. Warn instead; the link works once the firmware is deployed on the device.
+const isDev = import.meta.env.DEV
+
+function onClassicUi(e: MouseEvent) {
+  if (!isDev) return
+  e.preventDefault()
+  alert(
+    "You're running the dev server for the new app. The Classic UI is served by " +
+      'the device firmware, so it has no hot reloading and is unavailable here. ' +
+      'It will work once firmware.bin is deployed on the device.',
+  )
+}
+
 const serial = computed(() =>
   store.settings?.serialnr ? `SmartEVSE-${store.settings.serialnr}` : 'SmartEVSE (connecting)',
 )
@@ -235,6 +250,7 @@ function closeOnMobile() {
       <a
         href="/index.html"
         class="group mb-3 flex items-center gap-2 px-1 text-xs font-medium text-slate-400 transition hover:text-slate-200"
+        @click="onClassicUi"
       >
         <svg viewBox="0 0 24 24" class="size-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 5 5v6" />

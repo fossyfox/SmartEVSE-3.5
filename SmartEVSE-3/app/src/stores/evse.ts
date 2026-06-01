@@ -5,7 +5,6 @@ import {
   ApiError,
   fetchAutoUpdate,
   fetchSettings,
-  fetchSettingsRaw,
   getText,
   normalizeOrigin,
   postForm,
@@ -14,7 +13,6 @@ import {
   type AutoUpdateProgress,
   type CallOptions,
 } from '@/lib/api'
-import { detectDevice } from '@/lib/mdns'
 import type { ConnectionStatus, Settings } from '@/lib/types'
 
 const HOST_STORAGE_KEY = 'smartevse.host'
@@ -45,7 +43,6 @@ export const useEvseStore = defineStore('evse', () => {
   const status = ref<ConnectionStatus>('idle')
   const lastError = ref<string | null>(null)
   const lastUpdated = ref<number | null>(null)
-  const detecting = ref(false)
 
   // --- data ---------------------------------------------------------------
   // shallowRef: settings is replaced wholesale each poll, so deep reactivity
@@ -61,9 +58,22 @@ export const useEvseStore = defineStore('evse', () => {
   let pollTimer: ReturnType<typeof setTimeout> | null = null
   let inFlight: AbortController | null = null
 
+  // The Vite dev proxy forwards same-origin requests to VITE_DEVICE_HOST, so the
+  // browser never talks cross-origin to the device (which sends no CORS headers).
+  // The proxy only exists under `vite dev`; a production build is served by the
+  // device same-origin, so VITE_DEVICE_HOST is irrelevant there even if it leaked
+  // into the bundle from `.env`. Gate on import.meta.env.DEV so prod ignores it.
+  const DEV_PROXY_HOST = import.meta.env.DEV ? (import.meta.env.VITE_DEVICE_HOST ?? '').trim() : ''
+
   // Empty host = same origin (the device when served off its flash; the Vite
-  // proxy in dev). Non-empty host talks straight to that device origin.
-  const origin = computed(() => normalizeOrigin(host.value))
+  // proxy in dev). A non-empty host talks straight to that origin — EXCEPT in
+  // dev, where pointing at the proxy target must resolve to same-origin so Vite
+  // forwards it, rather than the browser hitting the device cross-origin (CORS).
+  const origin = computed(() => {
+    const resolved = normalizeOrigin(host.value)
+    if (DEV_PROXY_HOST && resolved === normalizeOrigin(DEV_PROXY_HOST)) return ''
+    return resolved
+  })
 
   // WebSocket URL for the LCD mirror, derived from the request origin.
   const lcdWsUrl = computed(() => {
@@ -74,12 +84,10 @@ export const useEvseStore = defineStore('evse', () => {
     }
     return `${base.replace(/^http/, 'ws')}/ws/lcd`
   })
-  const isConnected = computed(() => status.value === 'connected')
-  // What an empty host field reaches: the device off its flash, or
-  // VITE_DEVICE_HOST via the Vite proxy in dev.
-  const DEV_PROXY_HOST = (import.meta.env.VITE_DEVICE_HOST ?? '').trim()
   const displayHost = computed(() => {
-    if (host.value) return host.value
+    // origin === '' means "same origin": the device's own flash in prod, or the
+    // Vite proxy in dev (host field empty OR set to the proxy target).
+    if (origin.value) return host.value
     if (DEV_PROXY_HOST) return `${DEV_PROXY_HOST} (via dev proxy)`
     return `${location.host} (same origin)`
   })
@@ -182,40 +190,6 @@ export const useEvseStore = defineStore('evse', () => {
     scheduleNext()
   }
 
-  function setHost(next: string): void {
-    host.value = next.trim()
-    try {
-      localStorage.setItem(HOST_STORAGE_KEY, host.value)
-    } catch {
-      /* ignore */
-    }
-    settings.value = null
-    status.value = 'idle'
-    lastError.value = null
-    void refreshNow()
-  }
-
-  async function detect(): Promise<void> {
-    detecting.value = true
-    lastError.value = null
-    try {
-      // Firmware advertises as `SmartEVSE-<serialnr>.local` over mDNS. If we
-      // know the serial from a prior connection, probe that exact name first;
-      // else fall back to the generic candidates.
-      const extra: string[] = []
-      if (host.value) extra.push(host.value)
-      const serial = settings.value?.serialnr
-      if (serial) extra.push(`SmartEVSE-${serial}.local`)
-      const result = await detectDevice(extra)
-      setHost(result.host)
-    } catch (err) {
-      status.value = 'error'
-      lastError.value = err instanceof Error ? err.message : 'Detection failed'
-    } finally {
-      detecting.value = false
-    }
-  }
-
   // --- write helpers ------------------------------------------------------
   /** POST settings params, then refresh so the UI reflects the device truth. */
   async function commit(params: Record<string, string | number>): Promise<void> {
@@ -244,10 +218,6 @@ export const useEvseStore = defineStore('evse', () => {
     } catch {
       return false
     }
-  }
-
-  async function getRawSettings(): Promise<string> {
-    return fetchSettingsRaw(origin.value)
   }
 
   // --- firmware update ----------------------------------------------------
@@ -287,26 +257,17 @@ export const useEvseStore = defineStore('evse', () => {
     })
   }
 
-  /** Absolute URL for a device path (for links like /update). */
-  function urlFor(path: string): string {
-    return `${origin.value}${path.startsWith('/') ? path : `/${path}`}`
-  }
-
   return {
     // state
     host,
     status,
     lastError,
     lastUpdated,
-    detecting,
     settings,
-    pollIntervalMs,
     polling,
-    pollingPaused,
     // getters
     origin,
     lcdWsUrl,
-    isConnected,
     displayHost,
     // actions
     refresh,
@@ -315,17 +276,13 @@ export const useEvseStore = defineStore('evse', () => {
     stopPolling,
     pausePolling,
     resumePolling,
-    setHost,
-    detect,
     commit,
     reboot,
     getMqttCaCert,
     getOcppCaCert,
     verifyLcdPin,
-    getRawSettings,
     startAutoUpdate,
     pollAutoUpdate,
     uploadChunk,
-    urlFor,
   }
 })

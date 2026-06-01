@@ -24,7 +24,12 @@ services:
     environment:
       # Vite proxies the device endpoints here (see vite.config.ts). Required —
       # without it the browser would have to reach the device cross-origin.
-      VITE_DEVICE_HOST: ${DEVICE_HOST:-}
+      # `DEVICE_HOST=<ip> docker compose up` wins; otherwise fall back to
+      # VITE_DEVICE_HOST from app/.env (which Compose reads too). Without the
+      # fallback, an unset DEVICE_HOST injects an EMPTY VITE_DEVICE_HOST that
+      # overrides the .env value (Vite prioritises real env vars over .env), so
+      # the proxy would silently never forward.
+      VITE_DEVICE_HOST: ${DEVICE_HOST:-${VITE_DEVICE_HOST:-}}
     volumes:
       - ./:/app
       # Named volume shadows the host's node_modules (avoids host/container arch

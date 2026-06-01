@@ -82,13 +82,6 @@ export async function fetchSettings(origin: string, opts: CallOptions = {}): Pro
   }
 }
 
-/** Fetch the raw `/settings` text (for the raw-data view, no parsing). */
-export async function fetchSettingsRaw(origin: string, opts: CallOptions = {}): Promise<string> {
-  const res = await request(buildUrl(origin, '/settings'), opts)
-  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'http', res.status)
-  return res.text()
-}
-
 /**
  * POST settings as a query string, matching the firmware's
  * `$.post("/settings?key=value")` contract (empty body, params in the URL).

@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => {
     '/settings',
     '/reboot',
     '/update',
+    '/autoupdate',
     '/mqtt_ca_cert',
     '/ocpp_ca_cert',
     '/lcd-verify-password',
