@@ -12,6 +12,12 @@ const sidebarOpen = defineModel<boolean>('open', { default: false })
 const store = useEvseStore()
 const route = useRoute()
 
+// The connection panel (host field + mDNS detect) only makes sense in dev,
+// where the Vite proxy lets the browser reach a device cross-origin. When the
+// page is served by the device itself (any production build) it's same-origin,
+// so there's nothing to configure — hide the whole thing.
+const isDev = import.meta.env.DEV
+
 const panelOpen = ref(false)
 const hostDraft = ref(store.host)
 const rebooting = ref(false)
@@ -57,7 +63,9 @@ function togglePolling() {
 
 <template>
   <header class="sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur-md">
-    <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+    <!-- 4rem minus the header's own 1px bottom border, so this bar totals 64px
+         and its divider lines up with the sidebar's h-16 brand row. -->
+    <div class="mx-auto flex min-h-[calc(4rem_-_1px)] max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
       <!-- Mobile menu toggle + page title -->
       <div class="flex items-center gap-3">
         <button
@@ -103,7 +111,7 @@ function togglePolling() {
           </svg>
           <span class="hidden sm:inline">Refresh</span>
         </button>
-        <button class="btn btn-sm" :class="{ 'btn-primary': panelOpen }" @click="togglePanel">
+        <button v-if="isDev" class="btn btn-sm" :class="{ 'btn-primary': panelOpen }" @click="togglePanel">
           <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3" />
             <path
@@ -134,7 +142,7 @@ function togglePolling() {
       leave-active-class="transition duration-100 ease-in"
       leave-to-class="opacity-0 -translate-y-2"
     >
-      <div v-if="panelOpen" class="border-t border-white/10 bg-slate-900/80 backdrop-blur">
+      <div v-if="isDev && panelOpen" class="border-t border-white/10 bg-slate-900/80 backdrop-blur">
         <div class="mx-auto max-w-6xl px-4 py-4 sm:px-6">
           <div class="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <div>
