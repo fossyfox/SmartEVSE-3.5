@@ -530,8 +530,13 @@
                             </h1>
                             <h1 id="serialnr" class="h5 mb-0 text-white-800">SmartEVSE-</h1>
                           </div>
-                          <!-- Switch to the new Vue UI, served by the device at /app.html -->
-                          <a href="/app.html" class="btn btn-light btn-sm mt-1">Try the new UI &rarr;</a>
+                          <!-- Switch to the new Vue UI, served by the device at /app.html.
+                               data-ajax="false" + rel="external" force a full page load: this
+                               page loads jQuery Mobile, which otherwise hijacks the click and
+                               Ajax-loads /app.html into THIS document, keeping the legacy
+                               jQuery/Bootstrap <head> so the Vue app can't mount (white screen
+                               until a manual refresh does a real navigation). -->
+                          <a href="/app.html" data-ajax="false" rel="external" class="btn btn-light btn-sm mt-1">Try the new UI &rarr;</a>
                         </div>
                     </div>
                 </div>
