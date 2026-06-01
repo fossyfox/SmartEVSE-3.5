@@ -1,0 +1,60 @@
+# Reverse proxy for the SmartEVSE UI.
+#
+# Serves the built SPA and forwards the device's HTTP + WebSocket endpoints to
+# the real controller. The browser only ever talks to THIS origin, so no
+# cross-origin (CORS) request is made and the firmware needs no changes.
+#
+# Device selection:
+#   - default upstream     = DEVICE_HOST env (fallback: smartevse.local)
+#   - per-request override  = `X-Device-Host` header (sent by the app when built
+#     with VITE_PROXY_MODE=true) for HTTP requests, or a `?host=` query param for
+#     the LCD WebSocket (browsers can't set headers on a WebSocket). Plain
+#     navigations with neither fall back to DEVICE_HOST.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode gzip zstd
+
+	# --- Device endpoints (HTTP + LCD WebSocket) ---------------------------
+	@device path /settings /settings/* /reboot /update /update/* /mqtt_ca_cert /ocpp_ca_cert /lcd-verify-password /ws /ws/*
+	handle @device {
+		# Per-request device override sent by the app (proxy mode, HTTP requests).
+		@override header X-Device-Host *
+		handle @override {
+			reverse_proxy {http.request.header.X-Device-Host} {
+				header_up Host {http.request.header.X-Device-Host}
+				header_up -X-Device-Host
+			}
+		}
+		# Per-request device override for the LCD WebSocket (proxy mode). Browsers
+		# can't set headers on a WebSocket, so the app passes the device as a
+		# `?host=` query param. The param is forwarded as-is (the firmware matches
+		# /ws/lcd on path and ignores it); stripping it isn't possible here
+		# because Caddy's `uri` rewrite runs before `reverse_proxy` reads the
+		# placeholder.
+		@wsoverride query host=*
+		handle @wsoverride {
+			reverse_proxy {http.request.uri.query.host} {
+				header_up Host {http.request.uri.query.host}
+			}
+		}
+		# Default device from the DEVICE_HOST env. Used for link navigations and
+		# when the app isn't built in proxy mode.
+		handle {
+			reverse_proxy {$DEVICE_HOST:smartevse.local} {
+				header_up Host {$DEVICE_HOST:smartevse.local}
+			}
+		}
+	}
+
+	# --- Static SPA --------------------------------------------------------
+	# Hash-routed, so try_files just needs the index.html fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

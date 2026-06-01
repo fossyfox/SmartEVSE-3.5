@@ -1,0 +1,37 @@
+{
+  "name": "smartevse-deluxe-ui",
+  "version": "1.0.0",
+  "description": "Modern Vue 3 web UI for SmartEVSE V3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "build:proxy": "VITE_PROXY_MODE=true npm run build",
+    "build:singlefile": "VITE_SINGLE_FILE=true npm run build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "mock": "node mock/device.mjs"
+  },
+  "keywords": [
+    "smartevse",
+    "vue",
+    "ev-charger"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pinia": "^3.0.4",
+    "vue": "^3.5.35",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^25.9.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vue-tsc": "^3.3.3"
+  }
+}
