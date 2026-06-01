@@ -1,5 +1,7 @@
 # SmartEVSE Deluxe UI
 
+![From the stock jQuery/Bootstrap UI to a Vue 3 app — with instant hot reload and modern devtools](docs/why-vue-ui.gif)
+
 A modern web interface for the [SmartEVSE V3](https://github.com/dingo35/SmartEVSE-3.5)
 EV charger — a Vue 3 rewrite of the device's stock `index.html`. It polls the
 controller's `/settings` endpoint and renders a live dashboard, the LCD stream,
