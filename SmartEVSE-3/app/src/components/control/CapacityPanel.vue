@@ -56,9 +56,8 @@ async function setMaxSumMains() {
 }
 
 // --- interval list ------------------------------------------------------
-// Local working copy of the device's interval array. The device replaces it
-// wholesale each poll; we mirror it here while not actively editing so the
-// list stays in sync, then write the whole array back on every change.
+// Local copy of the device's interval array; device replaces it wholesale each
+// poll, so we mirror it and write the whole array back on every change.
 const intervals = ref<CapacityInterval[]>([])
 watch(
   () => s.value?.settings?.intervals,

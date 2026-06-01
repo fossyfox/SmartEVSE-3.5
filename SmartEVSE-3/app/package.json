@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "build:proxy": "VITE_PROXY_MODE=true npm run build",
-    "build:singlefile": "VITE_SINGLE_FILE=true npm run build",
+    "build:singlefile": "vue-tsc --noEmit && vite build --mode singlefile",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "mock": "node mock/device.mjs"

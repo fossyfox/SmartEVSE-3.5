@@ -3,16 +3,14 @@ import { fetchSettings, normalizeOrigin } from './api'
 /**
  * Browser-based "mDNS detection".
  *
- * Browsers cannot speak mDNS/DNS-SD directly from JavaScript, but every major
- * OS resolves `*.local` hostnames via mDNS (Bonjour / Avahi). SmartEVSE devices
- * advertise themselves as `SmartEVSE-<serialnr>.local`, so we probe a list of
- * likely hostnames (plus the page's own origin when it is served from the
+ * JS can't speak mDNS/DNS-SD, but every major OS resolves `*.local` via mDNS
+ * (Bonjour / Avahi). SmartEVSE devices advertise `SmartEVSE-<serialnr>.local`,
+ * so we probe likely hostnames (plus the page's own origin when served from the
  * device) and return the first that answers `/settings`.
  */
 
-// The firmware's real mDNS name is `SmartEVSE-<serialnr>.local`, so the most
-// reliable candidate (the serial-based name) is supplied by the caller once the
-// serial is known. These generic guesses cover the rare aliased setups.
+// The reliable serial-based name (`SmartEVSE-<serialnr>.local`) is supplied by
+// the caller once the serial is known; these generic guesses cover rare aliases.
 export const DEFAULT_CANDIDATES = ['smartevse.local', 'SmartEVSE.local']
 
 export interface DetectResult {
@@ -22,12 +20,6 @@ export interface DetectResult {
 
 export interface DetectOptions {
   timeoutMs?: number
-  /**
-   * When set (including `''`), probe candidates *through* this proxy origin by
-   * sending each candidate as an `X-Device-Host` header, instead of hitting the
-   * device cross-origin. Used in proxy mode to avoid browser CORS.
-   */
-  proxyBase?: string | null
 }
 
 function pageHostCandidate(): string[] {
@@ -46,7 +38,7 @@ export async function detectDevice(
   extra: string[] = [],
   options: DetectOptions = {},
 ): Promise<DetectResult> {
-  const { timeoutMs = 3000, proxyBase = null } = options
+  const { timeoutMs = 3000 } = options
   const candidates = Array.from(
     new Set([...extra, ...pageHostCandidate(), ...DEFAULT_CANDIDATES].filter(Boolean)),
   )
@@ -56,9 +48,8 @@ export async function detectDevice(
       new Promise<DetectResult>((resolve, reject) => {
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), timeoutMs)
-        const origin = proxyBase !== null ? proxyBase : normalizeOrigin(host)
-        const headers = proxyBase !== null ? { 'X-Device-Host': host } : undefined
-        fetchSettings(origin, { signal: controller.signal, headers })
+        const origin = normalizeOrigin(host)
+        fetchSettings(origin, { signal: controller.signal })
           .then(() => resolve({ host, origin }))
           .catch((err) => reject(err))
           .finally(() => clearTimeout(timer))

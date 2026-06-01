@@ -2,3 +2,6 @@
 .vscode
 packed_fs.c
 cmake-build-*/
+# Web UI artifacts built into data/ by build_app.py (pre: hook)
+data/app.html
+data/favicon.svg

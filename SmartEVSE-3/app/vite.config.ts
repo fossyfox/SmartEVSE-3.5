@@ -9,10 +9,8 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  // When VITE_DEVICE_HOST is set, the dev server proxies the SmartEVSE HTTP +
-  // WebSocket endpoints to a real device. This lets you develop against
-  // hardware without running into browser CORS restrictions: keep the in-app
-  // host field empty and all `/settings`, `/reboot`, … requests are forwarded.
+  // VITE_DEVICE_HOST proxies the SmartEVSE HTTP + WS endpoints to real hardware,
+  // dodging browser CORS. Keep the in-app host field empty so requests forward.
   const rawHost = env.VITE_DEVICE_HOST?.trim() ?? ''
   const httpTarget = rawHost
     ? rawHost.startsWith('http')
@@ -43,17 +41,14 @@ export default defineConfig(({ mode }) => {
     : undefined
 
   return {
-    // Relative base so the built bundle works when served from the device root.
+    // Relative base so the built bundle works served from any path on the device.
     base: './',
-    // With VITE_SINGLE_FILE (set by `npm run build:singlefile`), viteSingleFile
-    // inlines the JS + CSS into a single self-contained index.html. Combined
-    // with `base: './'` the result works under any mount path on the external
-    // static host (or served off the device). The default build keeps separate
-    // hashed asset files for chunk-level caching.
+    // `--mode singlefile` inlines JS + CSS into one index.html that the firmware
+    // packs and serves at /app.html; default build keeps hashed assets for caching.
     plugins: [
       vue(),
       tailwindcss(),
-      ...(env.VITE_SINGLE_FILE ? [viteSingleFile()] : []),
+      ...(mode === 'singlefile' ? [viteSingleFile()] : []),
     ],
     resolve: {
       alias: {

@@ -22,9 +22,8 @@ const docsUrl = computed(() => {
   return `https://github.com/dingo35/SmartEVSE-3.5/tree/${path}#documentation`
 })
 
-// Logical feature groupings. `icon` is inner SVG markup (stroke-based, 24×24).
-// An item is either an in-app route (`name`) or an external link (`href`) that
-// opens in a new tab — e.g. the device-hosted capacity page.
+// `icon` is inner SVG markup (stroke-based, 24×24). Item is either an in-app
+// route (`name`) or an external link (`href`, opens in a new tab).
 interface NavItem {
   name?: string
   href?: string
@@ -231,6 +230,16 @@ function closeOnMobile() {
         <svg viewBox="0 0 24 24" class="ml-auto size-3.5 text-slate-500 group-hover:text-slate-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M7 17 17 7M9 7h8v8" />
         </svg>
+      </a>
+      <!-- Switch back to the device's legacy single-file UI (served at /index.html). -->
+      <a
+        href="/index.html"
+        class="group mb-3 flex items-center gap-2 px-1 text-xs font-medium text-slate-400 transition hover:text-slate-200"
+      >
+        <svg viewBox="0 0 24 24" class="size-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 5 5v6" />
+        </svg>
+        <span>Classic UI</span>
       </a>
       <div class="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
         <div class="flex items-center justify-between gap-2">

@@ -71,6 +71,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade platformio
+      # The firmware build runs build_app.py, which builds the Vue web UI in
+      # SmartEVSE-3/app and packs it into the image. That needs Node.js + npm.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: SmartEVSE-3/app/package-lock.json
       - name: Build normal version
         env:
           super_secret: ${{ secrets.SECRET_RSA_KEY }}

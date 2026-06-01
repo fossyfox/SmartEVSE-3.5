@@ -9,9 +9,8 @@ const MIN_PRESS_MS = 300
 const PAUSED_KEY = 'smartevse.lcdPaused'
 
 /**
- * Manages the SmartEVSE LCD WebSocket: streams BMP frames, sends button
- * presses, and handles reconnection. Mirrors the behaviour of the original
- * inline `/ws/lcd` client in a composable.
+ * SmartEVSE LCD WebSocket: streams BMP frames, sends button presses, handles
+ * reconnection.
  *
  * `wsUrl` is the fully-resolved `ws(s)://…/ws/lcd` endpoint (built by the store
  * so all proxy/host logic lives in one place). Changing it — e.g. selecting a
@@ -19,8 +18,7 @@ const PAUSED_KEY = 'smartevse.lcdPaused'
  */
 export function useLcd(wsUrl: Ref<string>) {
   const frameUrl = ref<string | null>(null)
-  // Persisted across reloads in localStorage (like the store's host) so a user
-  // who paused the LCD stays paused next visit.
+  // Persisted in localStorage so a paused LCD stays paused next visit.
   const paused = ref(localStorage.getItem(PAUSED_KEY) === '1')
   const statusText = ref(paused.value ? 'Paused' : 'Starting…')
   const statusState = ref<LcdState>('info')
@@ -125,9 +123,8 @@ export function useLcd(wsUrl: Ref<string>) {
     connect()
   }
 
-  // Pause stops streaming and tears down the socket so the device isn't pushing
-  // frames we ignore; the last frame stays on screen behind the paused overlay.
-  // Resume reconnects from scratch.
+  // Tear down the socket so the device stops pushing frames we ignore; the last
+  // frame stays on screen behind the paused overlay. Resume reconnects fresh.
   function pause() {
     if (paused.value) return
     paused.value = true
@@ -189,10 +186,9 @@ export function useLcd(wsUrl: Ref<string>) {
     else fire()
   }
 
-  // Connect on mount and reconnect on visibility / network changes, and when
-  // the device (and thus the URL) changes. `immediate` kicks off the initial
-  // connection — without it the socket would never open and the LCD would hang
-  // on its starting message.
+  // Connect on mount and reconnect on visibility/network changes and URL (device)
+  // change. `immediate` kicks off the initial connection — without it the socket
+  // never opens and the LCD hangs on its starting message.
   const onVisible = () => {
     if (document.visibilityState === 'visible' && stopped) restart()
   }

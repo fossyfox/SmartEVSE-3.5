@@ -4,6 +4,12 @@ You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/r
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
 * Compile firmware.bin: `platformio run` (or `pio run`) <br>
 
+> **Node.js is required.** The build also compiles the Vue web UI in
+> `SmartEVSE-3/app/` and packs it into the firmware image, so you need
+> **Node.js + npm** on your PATH (the project uses Node 24; any recent LTS works,
+> on Linux, macOS or Windows). To build without it and ship only the legacy UI,
+> set `SKIP_APP_BUILD=1` (e.g. `SKIP_APP_BUILD=1 pio run`).
+
 Following these instructions on Linux you would create firmware.bin in directory /path/to/SmartEVSE-3.5/SmartEVSE-3/.pio/build/release as follows:
 ```
 sudo apt install platformio

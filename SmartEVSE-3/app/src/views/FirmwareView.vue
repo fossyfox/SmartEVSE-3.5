@@ -11,11 +11,10 @@ const version = computed(() => s.value?.version ?? '—')
 const serial = computed(() => (s.value?.serialnr ? `SmartEVSE-${s.value.serialnr}` : '—'))
 
 // ------------------------------------------------------------------ //
-// Latest releases — fetched straight from the GitHub releases API,
-// mirroring the legacy update2.html page (no auth, public endpoint).
+// Latest releases — from the GitHub releases API (no auth, public).
 // ------------------------------------------------------------------ //
 interface Channel {
-  /** Stable identifier used for state keys and the `owner` query param. */
+  /** State key and `owner` query param. */
   key: 'factory' | 'community'
   label: string
   status: string
@@ -65,7 +64,7 @@ const phase = ref<Phase>('idle')
 const message = ref('')
 const sent = ref(0)
 const total = ref(0)
-/** Identifies which control is busy, for per-button spinners. */
+/** Which control is busy, for per-button spinners. */
 const activeJob = ref<string | null>(null)
 
 const busy = computed(() => phase.value === 'running')
@@ -73,8 +72,8 @@ const percent = computed(() => {
   if (!total.value) return phase.value === 'running' ? 0 : 0
   return Math.min(100, Math.round((sent.value / total.value) * 100))
 })
-// The auto-update path reports `progress` as bytes but doesn't always give a
-// reliable total up front, so show an indeterminate bar until we have one.
+// Auto-update reports `progress` in bytes but no reliable total up front;
+// show an indeterminate bar until we have one.
 const indeterminate = computed(() => phase.value === 'running' && total.value === 0)
 
 function resetProgress(job: string): void {
@@ -154,7 +153,7 @@ const CHUNK_SIZE = 2048
 const fileInput = ref<HTMLInputElement | null>(null)
 const cancelled = ref(false)
 
-// Uploads only work over plain HTTP (the firmware can't handle the body on TLS).
+// Uploads only work over plain HTTP — firmware can't handle the body on TLS.
 const httpsWarning = computed(() => {
   const origin = store.origin || location.origin
   return origin.startsWith('https:')

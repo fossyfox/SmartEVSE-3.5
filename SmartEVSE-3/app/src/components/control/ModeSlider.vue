@@ -23,8 +23,8 @@ const emit = defineEmits<{
 
 const track = ref<HTMLElement | null>(null)
 
-// Index of the active option within the *visible* set. Falls back to 0 if the
-// active mode is currently hidden (e.g. SOLAR active but mains meter removed).
+// Index of the active option within the *visible* set; falls back to 0 if the
+// active mode is hidden (e.g. SOLAR active but mains meter removed).
 const activeIndex = computed(() => {
   const i = props.options.findIndex((o) => o.id === props.modelValue)
   return i === -1 ? 0 : i

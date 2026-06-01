@@ -48,51 +48,35 @@ export const useEvseStore = defineStore('evse', () => {
   const detecting = ref(false)
 
   // --- data ---------------------------------------------------------------
-  // shallowRef: the settings object is replaced wholesale each poll, so deep
-  // reactivity would be wasted work.
+  // shallowRef: settings is replaced wholesale each poll, so deep reactivity
+  // would be wasted work.
   const settings = shallowRef<Settings | null>(null)
 
   // --- polling ------------------------------------------------------------
   const pollIntervalMs = ref(DEFAULT_POLL_MS)
   const polling = ref(false)
-  // User intent to suspend auto-polling, persisted across reloads. Distinct
-  // from `polling` (the runtime loop flag) so that lifecycle teardown via
-  // stopPolling() doesn't clobber the saved preference.
+  // Persisted user intent to suspend polling; distinct from `polling` (runtime
+  // loop flag) so stopPolling() teardown doesn't clobber the saved preference.
   const pollingPaused = ref(loadStoredPollPaused())
   let pollTimer: ReturnType<typeof setTimeout> | null = null
   let inFlight: AbortController | null = null
 
-  // Proxy mode: the app is served behind the bundled reverse proxy. Requests go
-  // same-origin and the chosen device is conveyed via the `X-Device-Host`
-  // header, so the browser never makes a cross-origin (CORS) request.
-  const PROXY_MODE = import.meta.env.VITE_PROXY_MODE === 'true'
-  const PROXY_BASE = (import.meta.env.VITE_PROXY_BASE ?? '').replace(/\/+$/, '')
+  // Empty host = same origin (the device when served off its flash; the Vite
+  // proxy in dev). Non-empty host talks straight to that device origin.
+  const origin = computed(() => normalizeOrigin(host.value))
 
-  const origin = computed(() => (PROXY_MODE ? PROXY_BASE : normalizeOrigin(host.value)))
-  const requestHeaders = computed<Record<string, string> | undefined>(() =>
-    PROXY_MODE && host.value ? { 'X-Device-Host': host.value } : undefined,
-  )
-
-  // WebSocket URL for the LCD mirror. Browsers can't set custom headers on a
-  // WebSocket, so in proxy mode the chosen device is conveyed via a `host`
-  // query param (the reverse proxy reads it the way it reads `X-Device-Host`
-  // for HTTP). Direct (non-proxy) mode talks straight to the device origin.
+  // WebSocket URL for the LCD mirror, derived from the request origin.
   const lcdWsUrl = computed(() => {
     const base = origin.value
-    let url: string
     if (!base) {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      url = `${proto}//${location.host}/ws/lcd`
-    } else {
-      url = `${base.replace(/^http/, 'ws')}/ws/lcd`
+      return `${proto}//${location.host}/ws/lcd`
     }
-    if (PROXY_MODE && host.value) url += `?host=${encodeURIComponent(host.value)}`
-    return url
+    return `${base.replace(/^http/, 'ws')}/ws/lcd`
   })
   const isConnected = computed(() => status.value === 'connected')
-  // What we actually reach when the in-app host field is empty: in dev the Vite
-  // proxy forwards to VITE_DEVICE_HOST, so surface that rather than the dev
-  // server's own origin. Production same-origin falls back to location.host.
+  // What an empty host field reaches: the device off its flash, or
+  // VITE_DEVICE_HOST via the Vite proxy in dev.
   const DEV_PROXY_HOST = (import.meta.env.VITE_DEVICE_HOST ?? '').trim()
   const displayHost = computed(() => {
     if (host.value) return host.value
@@ -123,10 +107,7 @@ export const useEvseStore = defineStore('evse', () => {
     inFlight = new AbortController()
     if (!settings.value) status.value = 'connecting'
     try {
-      const data = await fetchSettings(origin.value, {
-        signal: inFlight.signal,
-        headers: requestHeaders.value,
-      })
+      const data = await fetchSettings(origin.value, { signal: inFlight.signal })
       settings.value = data
       status.value = 'connected'
       lastError.value = null
@@ -218,16 +199,14 @@ export const useEvseStore = defineStore('evse', () => {
     detecting.value = true
     lastError.value = null
     try {
-      // The firmware advertises itself as `SmartEVSE-<serialnr>.local` over
-      // mDNS. If we already know the serial from a previous connection, probe
-      // that exact name first; otherwise fall back to the generic candidates.
+      // Firmware advertises as `SmartEVSE-<serialnr>.local` over mDNS. If we
+      // know the serial from a prior connection, probe that exact name first;
+      // else fall back to the generic candidates.
       const extra: string[] = []
       if (host.value) extra.push(host.value)
       const serial = settings.value?.serialnr
       if (serial) extra.push(`SmartEVSE-${serial}.local`)
-      const result = await detectDevice(extra, {
-        proxyBase: PROXY_MODE ? PROXY_BASE : null,
-      })
+      const result = await detectDevice(extra)
       setHost(result.host)
     } catch (err) {
       status.value = 'error'
@@ -240,29 +219,24 @@ export const useEvseStore = defineStore('evse', () => {
   // --- write helpers ------------------------------------------------------
   /** POST settings params, then refresh so the UI reflects the device truth. */
   async function commit(params: Record<string, string | number>): Promise<void> {
-    await postSettings(origin.value, params, { headers: requestHeaders.value })
+    await postSettings(origin.value, params)
     await refreshNow()
   }
 
   async function reboot(): Promise<string> {
-    return getText(origin.value, '/reboot', { headers: requestHeaders.value })
+    return getText(origin.value, '/reboot')
   }
 
   async function getMqttCaCert(): Promise<string> {
-    return getText(origin.value, '/mqtt_ca_cert', { headers: requestHeaders.value })
+    return getText(origin.value, '/mqtt_ca_cert')
   }
 
   async function getOcppCaCert(): Promise<string> {
-    return getText(origin.value, '/ocpp_ca_cert', { headers: requestHeaders.value })
+    return getText(origin.value, '/ocpp_ca_cert')
   }
 
   async function verifyLcdPin(pin: string): Promise<boolean> {
-    const res = await postForm(
-      origin.value,
-      '/lcd-verify-password',
-      { password: pin },
-      { headers: requestHeaders.value },
-    )
+    const res = await postForm(origin.value, '/lcd-verify-password', { password: pin })
     if (!res.ok) return false
     try {
       const data = (await res.json()) as { success?: boolean }
@@ -273,14 +247,13 @@ export const useEvseStore = defineStore('evse', () => {
   }
 
   async function getRawSettings(): Promise<string> {
-    return fetchSettingsRaw(origin.value, { headers: requestHeaders.value })
+    return fetchSettingsRaw(origin.value)
   }
 
   // --- firmware update ----------------------------------------------------
-  // Firmware operations are far slower than ordinary settings reads: the device
-  // erases/writes flash and (for auto-update) downloads the image from GitHub
-  // before it answers. The default 8 s request timeout trips long before that,
-  // so allow a much longer window for these calls.
+  // Firmware ops are far slower than settings reads: the device erases/writes
+  // flash and (for auto-update) downloads the image from GitHub before
+  // answering, well past the default 8 s timeout.
   const FIRMWARE_TIMEOUT_MS = 5 * 60 * 1000
 
   /** Start a channel auto-update; resolves with the initial progress payload. */
@@ -291,7 +264,6 @@ export const useEvseStore = defineStore('evse', () => {
   ): Promise<AutoUpdateProgress> {
     return fetchAutoUpdate(origin.value, { owner, debug }, {
       timeoutMs: FIRMWARE_TIMEOUT_MS,
-      headers: requestHeaders.value,
       ...opts,
     })
   }
@@ -300,7 +272,6 @@ export const useEvseStore = defineStore('evse', () => {
   async function pollAutoUpdate(opts: CallOptions = {}): Promise<AutoUpdateProgress> {
     return fetchAutoUpdate(origin.value, {}, {
       timeoutMs: FIRMWARE_TIMEOUT_MS,
-      headers: requestHeaders.value,
       ...opts,
     })
   }
@@ -312,7 +283,6 @@ export const useEvseStore = defineStore('evse', () => {
   ): Promise<{ ok: boolean; text: string }> {
     return postUpdateChunk(origin.value, args, {
       timeoutMs: FIRMWARE_TIMEOUT_MS,
-      headers: requestHeaders.value,
       ...opts,
     })
   }

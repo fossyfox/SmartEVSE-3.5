@@ -1,96 +1,36 @@
-# Run the SmartEVSE UI in a container — two modes, selected by Compose profile.
+# Optional dev-only container: the Vite dev server with hot reload.
+# Works the same on Linux, macOS and Windows (Docker Desktop / Docker Engine).
 #
-# Prod is the DEFAULT profile — build the SPA, then serve + reverse-proxy it with
-# Caddy on :8088:
-#   DEVICE_HOST=192.168.1.50 docker compose up             # default profile = prod
-#   # then open http://localhost:8088
+#   DEVICE_HOST=192.168.1.50 docker compose up      # then open http://localhost:5173
 #
-# Dev (Caddy in front of the Vite dev server — hot reload, one origin, on :5173):
-#   docker compose --profile dev up                        # flag form
-#   COMPOSE_PROFILES=dev docker compose up                 # equivalent env var form
-#   DEVICE_HOST=192.168.1.50 docker compose --profile dev up
-#   # then open http://localhost:5173
+# Production needs no container: the UI is built into the firmware and served by
+# the SmartEVSE itself at /app.html (same origin, so CORS never applies). This
+# compose is purely a dev convenience — it runs `npm run dev`, and Vite's proxy
+# forwards the device endpoints (/settings, /ws/lcd, …) to DEVICE_HOST. The
+# browser only ever talks to localhost:5173, so leave the in-app "Device
+# address" field empty.
 #
-# Both modes put Caddy in front so the browser hits ONE origin (no CORS): app +
-# (in dev) HMR proxied to Vite, device endpoints proxied to DEVICE_HOST. In dev
-# the source tree is bind-mounted so edits to ./src hot-reload in the browser.
-# Leave the in-app "Device address" field empty to use DEVICE_HOST, or type an
-# address to override per request.
-#
-# The dev services run on the HOST network (Linux), so requests to the device
-# leave with the host's LAN IP rather than a 172.x container address the device
-# would refuse — matching a local `npm run dev`.
+# Use the device's IP for DEVICE_HOST: a bridged container can't resolve mDNS
+# (`*.local`) names. Linux users who want `.local` can swap the `ports:` mapping
+# for `network_mode: host` (see the commented lines below) — but that is
+# Linux-only, hence the portable default here.
 services:
-  # --- Dev: Vite dev server with hot-module reload (HMR) ------------------
-  # Listens on :5174; caddy-dev (below) fronts it on :5173, so the browser hits
-  # one origin exactly like prod. Host networking → reached at localhost:5174.
   dev:
     image: node:24-alpine
-    profiles: ['dev']
-    network_mode: host
     working_dir: /app
-    environment:
-      # Run the app in proxy mode (same-origin requests + X-Device-Host header),
-      # so the Caddy in front can reverse-proxy device requests just like prod.
-      VITE_PROXY_MODE: 'true'
-    volumes:
-      - ./:/app
-      # Named volume shadows the host's node_modules (avoids host/container
-      # arch mismatch) and persists installs between runs.
-      - node_modules:/app/node_modules
-    # Bind Vite to :5174 (vite.config.ts sets host 0.0.0.0); caddy-dev fronts it.
-    # `npm install` is a near-noop once the named volume is populated.
-    command: sh -c "npm install && npm run dev -- --port 5174"
-
-  # --- Dev: Caddy in front of the Vite dev server ------------------------
-  # Listens on :5173, reverse-proxies localhost:5174 (app + HMR WebSocket), and
-  # forwards device endpoints to DEVICE_HOST — same device model as prod, so
-  # per-request overrides via the in-app host field work in dev too. On the host
-  # network, so device requests use the host's LAN IP. See deploy/Caddyfile.dev.
-  caddy-dev:
-    image: caddy:2-alpine
-    container_name: smartevse-caddy-dev
-    profiles: ['dev']
-    network_mode: host
-    depends_on:
-      - dev
-    environment:
-      # Default controller the proxy forwards to (override per request via the UI).
-      DEVICE_HOST: ${DEVICE_HOST:-smartevse.local}
-    volumes:
-      - ./deploy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
-    restart: unless-stopped
-
-  # --- Prod (one-shot): builds the SPA into ./dist, then exits ------------
-  builder:
-    image: node:24-alpine
-    profiles: ['prod']
-    working_dir: /app
-    environment:
-      # Proxy mode: same-origin requests + X-Device-Host header (no browser CORS).
-      VITE_PROXY_MODE: 'true'
-    volumes:
-      - ./:/app
-      - node_modules:/app/node_modules
-    command: sh -c "npm ci && npm run build"
-
-  # --- Prod: the Caddy container serves ./dist and reverse-proxies the device.
-  caddy:
-    image: caddy:2-alpine
-    container_name: smartevse-caddy
-    profiles: ['prod']
-    depends_on:
-      builder:
-        condition: service_completed_successfully
     ports:
-      - '8088:80'
+      - '5173:5173'
+    # network_mode: host   # Linux only: resolves <device>.local; drop `ports:` above
     environment:
-      # Default controller the proxy forwards to (override per request via the UI).
-      DEVICE_HOST: ${DEVICE_HOST:-smartevse.local}
+      # Vite proxies the device endpoints here (see vite.config.ts). Required —
+      # without it the browser would have to reach the device cross-origin.
+      VITE_DEVICE_HOST: ${DEVICE_HOST:-}
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./dist:/srv:ro
-    restart: unless-stopped
+      - ./:/app
+      # Named volume shadows the host's node_modules (avoids host/container arch
+      # mismatch) and persists installs between runs.
+      - node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host --port 5173"
 
 volumes:
   node_modules:

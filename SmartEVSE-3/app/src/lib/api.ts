@@ -14,7 +14,7 @@ export class ApiError extends Error {
 /** Per-call options shared by every request helper. */
 export interface CallOptions {
   signal?: AbortSignal
-  /** Extra request headers (e.g. `X-Device-Host` when running behind the proxy). */
+  /** Extra request headers. */
   headers?: Record<string, string>
   timeoutMs?: number
 }
@@ -124,8 +124,8 @@ export interface AutoUpdateProgress {
 
 /**
  * Trigger a channel auto-update (`GET /autoupdate?owner=&debug=`) or poll its
- * progress (`GET /autoupdate` with no params). The firmware streams the new
- * image from GitHub and reports byte progress on subsequent polls.
+ * progress (no params). Firmware streams the image from GitHub and reports byte
+ * progress on subsequent polls.
  */
 export async function fetchAutoUpdate(
   origin: string,
@@ -160,8 +160,8 @@ export async function postUpdateChunk(
     file: args.file,
     size: String(args.size),
   })
-  // Send the raw bytes; copy into a fresh ArrayBuffer so a subarray view doesn't
-  // leak the rest of the file into the request body.
+  // Copy into a fresh ArrayBuffer so a subarray view doesn't leak the rest of
+  // the file into the body.
   const body = args.chunk.slice().buffer
   const res = await request(buildUrl(origin, `/update?${qs.toString()}`), {
     ...opts,

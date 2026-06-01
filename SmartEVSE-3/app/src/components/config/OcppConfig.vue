@@ -44,7 +44,7 @@ const autoAuthModel = computed({
 
 async function toggleEdit() {
   if (editing.value) {
-    // Closing == save (mirrors the original "Edit / Save" toggle button).
+    // Closing == save (mirrors the "Edit / Save" toggle).
     await save()
     return
   }

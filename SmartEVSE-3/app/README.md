@@ -8,57 +8,55 @@ and the full set of controls (mode, solar, locks, PWM, MQTT, OCPP, …).
 Built with **Vue 3** · **Vite** · **Tailwind CSS v4** · **TypeScript** ·
 **Pinia** · **Vue Router**.
 
+## How it ships
+
+The UI is **built into the firmware and served by the SmartEVSE itself**. The
+firmware build (`pio run`) runs [`build_app.py`](../build_app.py), which compiles
+this app into one self-contained `index.html` and packs it into the device's
+flash. The device then serves it at **`/app.html`**, alongside the legacy stock
+UI at `/`.
+
+Because the page is served by the device, the browser talks to the **same
+origin** — there is no CORS and nothing else to host. Just flash the firmware and
+open `http://<device>/app.html`.
+
+For now the two UIs coexist: the legacy page has a **"Try the new UI →"** link to
+`/app.html`, and this app has a **"Classic UI"** link back to `/`. (Building the
+firmware needs Node.js — see [Building the firmware](../../docs/building_flashing.md);
+set `SKIP_APP_BUILD=1` to ship only the legacy UI.)
+
 ## Why this exists
 
-The SmartEVSE V3 ships its own web UI — a single `index.html` built on jQuery and
-Bootstrap, served straight off the device's flash. It works, but it's awkward to
-develop:
-
-- **The edit/see loop runs through the device.** To check how a UI change looks or
-  behaves, you flash `index.html` to the controller and reload — there's no local
-  preview, no hot reload, and every iteration is gated on a firmware/file upload.
-- **It's stuck in an older stack.** Hand-written jQuery DOM manipulation and
-  Bootstrap, with no components, types, or build step.
-
-This project reimplements that UI in a **modern frontend stack** so the inner loop
-is fast and the code is maintainable:
-
-- **Instant hot reload** via the Vite dev server (or the mock device / dev proxy) —
-  you see changes in the browser immediately, no flashing.
-- **Component-based, typed code** — Vue 3 single-file components, TypeScript
-  against the device's `/settings` contract, Tailwind for styling, Pinia for state.
-- **Decoupled from the firmware** — the app talks to the device over its existing
-  HTTP/WebSocket API and can run anywhere (locally, in a container, or hosted
-  separately), so the device firmware never has to change to iterate on the UI.
-
-It mirrors the stock UI's behaviour (the same endpoints, write semantics, and LCD
-WebSocket protocol) while being a clean rewrite, not a port.
+The stock UI is a single jQuery/Bootstrap `index.html`, with no components,
+types, or build step, and every change has to be flashed to the device to preview.
+This project reimplements it in a modern stack so the inner loop is fast (instant
+hot reload in dev) and the code is component-based and typed against the device's
+`/settings` contract. It mirrors the stock UI's behaviour — same endpoints, write
+semantics, and LCD WebSocket protocol — as a clean rewrite, not a port.
 
 ## How it works
 
-The app is a **single-page client** for the SmartEVSE V3's built-in HTTP server.
-It holds no backend of its own — the device is the only source of truth.
+A single-page client for the SmartEVSE's built-in HTTP server. It holds no
+backend of its own — the device is the only source of truth.
 
 - **Poll / commit loop.** A single Pinia store ([`src/stores/evse.ts`](src/stores/evse.ts))
   polls `GET /settings` on an interval (default 5s), replacing its state wholesale
   each tick. Writes go out as `POST /settings?key=value` (params in the query
   string, empty body — matching the firmware) and are immediately followed by a
-  refresh, so the UI always reflects device truth rather than optimistic state.
-  Polling pauses while the tab is hidden and resumes (with an immediate refresh)
-  on focus.
+  refresh, so the UI reflects device truth rather than optimistic state. Polling
+  pauses while the tab is hidden and resumes on focus.
 - **LCD mirror.** [`src/composables/useLcd.ts`](src/composables/useLcd.ts) opens
   the `/ws/lcd` WebSocket, renders the streamed BMP frames, and sends button
   presses back. It reconnects on host/visibility/online changes.
-- **Connection.** The target device is set in the UI (or auto-detected via mDNS
-  as `SmartEVSE-<serial>.local`) and persisted to `localStorage`.
-- **Cross-origin / CORS.** The firmware sends no CORS headers, so a browser
-  loading this app from another origin can't fetch the device by IP directly.
-  Every supported deployment puts the app on the **same origin** as the device
-  traffic — by serving it from the device, from a Caddy reverse proxy, or via the
-  Vite dev proxy (see the [table below](#why-cors-matters-here)).
+- **Connection.** Served from the device, the in-app **Device address** field is
+  left empty → requests go same-origin to the device. You can also type an
+  address (or auto-detect via mDNS as `SmartEVSE-<serial>.local`); the choice is
+  persisted to `localStorage`. Pointing at a device **by IP from another origin**
+  is cross-origin and the firmware sends no CORS headers — for that, use dev mode
+  (below), whose Vite proxy keeps everything same-origin.
 - **Relocatable bundle.** Built with a relative asset base (`base: './'`) and
-  hash-based routing, so `dist/` works under any mount path with no SPA-fallback
-  config.
+  hash-based routing, so the single `index.html` works at any path (the device
+  serves it at `/app.html`) with no SPA-fallback config.
 
 ## Features
 
@@ -75,113 +73,52 @@ It holds no backend of its own — the device is the only source of truth.
   (`SmartEVSE-<serial>.local`). Polling interval defaults to 5s; pause/resume and
   the chosen device persist across reloads.
 
-## Quick start (development)
+## Development
+
+You only need the device's address on your LAN. Pick whichever fits your setup —
+both work the same on **Linux, macOS and Windows** and both solve CORS with
+Vite's dev proxy (no firmware change, no Caddy):
+
+### Option A — local tools (Node.js installed)
 
 ```bash
 npm install
-npm run dev
+cp .env.example .env       # then set VITE_DEVICE_HOST=<device ip or .local>
+npm run dev                # http://localhost:5173, hot reload
 ```
 
-Then set the device address in the **Connection** panel (top-right gear), or run
-against the bundled mock so you don't need hardware:
+`VITE_DEVICE_HOST` makes the Vite dev server proxy `/settings`, `/ws/lcd`, … to
+the real device, so leave the in-app **Device address** field empty. No hardware?
+Run the bundled mock instead:
 
 ```bash
-npm run mock          # mock SmartEVSE on http://localhost:8080 (CORS enabled)
+npm run mock               # mock SmartEVSE on http://localhost:8080
+VITE_DEVICE_HOST=localhost:8080 npm run dev
 ```
 
-Point the in-app address field at `localhost:8080`, or use the dev proxy
-(below) to avoid CORS entirely.
+### Option B — Docker (no local tools)
 
-### Dev proxy (real hardware, no CORS)
-
-The firmware sends **no CORS headers**, so a browser loading this app from
-`localhost:5173` cannot fetch a device by IP directly. For development, forward
-requests through Vite's dev proxy — copy `.env.example` to `.env` and set:
+Runs the same Vite dev server in a container — nothing to install but Docker.
 
 ```bash
-VITE_DEVICE_HOST=192.168.1.50        # or SmartEVSE-1234.local
+DEVICE_HOST=192.168.1.50 docker compose up   # http://localhost:5173
 ```
 
-Then leave the in-app address field **empty**; `npm run dev` proxies `/settings`,
-`/reboot`, `/ws/lcd`, … to the device server-side.
-
-## Run with Docker Compose
-
-All Docker commands run from `app/` (where [`docker-compose.yml`](docker-compose.yml)
-lives). Two profiles are defined; both put the app and the device on a single
-Caddy origin so there's **no CORS and no firmware change**.
-
-| Profile | Command | What you get |
-|---|---|---|
-| **prod** | `DEVICE_HOST=192.168.1.50 docker compose up` | Builds the SPA once, Caddy serves `dist/` and proxies the device. → `http://localhost:8088` |
-| **dev** | `DEVICE_HOST=192.168.1.50 docker compose --profile dev up` | Vite dev server with hot reload behind Caddy. → `http://localhost:5173` |
-
-`prod` is the default profile, so `docker compose up` runs it. The `dev` profile
-must be requested explicitly via `--profile dev` (flag) or
-`COMPOSE_PROFILES=dev` (env var). Pass `-d` to either to run detached.
-
-In both cases, leave the in-app address field **empty** to use `DEVICE_HOST`, or
-type an address to override per request (sent as the `X-Device-Host` header,
-which Caddy forwards). `DEVICE_HOST` may be omitted if you'll always set the
-address in the UI, though the LCD WebSocket and link navigations still rely on it.
-
-Tear down with `docker compose --profile dev down` (or `down -v` to also drop
-the `node_modules` / Caddy volumes and force a clean reinstall).
-
-### Dev profile details (hot reload, Caddy in front)
-
-The `dev` profile runs the Vite dev server in a container. A Caddy reverse
-proxy sits in front of Vite — just like prod — serving the app **and** HMR by
-proxying the Vite dev server, while forwarding device endpoints to `DEVICE_HOST`.
-So the browser hits one origin (no CORS) and edits still hot-reload. The source
-tree is bind-mounted; open `http://localhost:5173`.
-
-The first run installs deps into a named volume (`app_node_modules`), so
-`localhost:5173` may 502 for a few seconds until Vite is up.
-
-The dev containers use the **host network** (Linux), so requests to the device
-go out with the host's LAN IP — not a `172.x` Docker-bridge address the device
-refuses. Caddy listens on `:5173` and fronts Vite on `:5174`
-(see [`deploy/Caddyfile.dev`](deploy/Caddyfile.dev)).
-
-### Prod profile details (Caddy container)
-
-For hosting the app separately from the device, the `prod` profile runs two
-services: a one-shot **builder** (`node:24-alpine`) that runs `npm ci && npm run
-build` with `VITE_PROXY_MODE=true` to compile the SPA into `dist/`, and the
-official **caddy** image that serves it **and** reverse-proxies the device
-endpoints on `:8088`.
-
-- Leave the in-app address field **empty** to use `DEVICE_HOST` (covers the LCD
-  WebSocket and link navigations too).
-- Or type an address in the UI to override per request: the build sets
-  `VITE_PROXY_MODE=true`, so it sends your address as the `X-Device-Host` header
-  and Caddy forwards `fetch` requests there. (WebSocket/links still use
-  `DEVICE_HOST`, since browsers can't set headers on those.)
-
-See [`docker-compose.yml`](docker-compose.yml) and [`deploy/Caddyfile`](deploy/Caddyfile).
-
-### Why CORS matters here
-
-| Deployment | Browser talks to | CORS? |
-|---|---|---|
-| Served from the device (flash `dist/`) | the device (same origin) | none |
-| Caddy container (this repo) | Caddy (same origin) | none |
-| Dev (`npm run dev`) | Vite, which proxies the device | none |
-| App by IP → device directly | the device (cross-origin) | **blocked** unless the firmware adds `Access-Control-Allow-Origin` |
-
-The firmware advertises itself over mDNS as **`SmartEVSE-<serialnr>.local`**, which
-the OS resolves; "auto-detect" probes that name once the serial is known.
+Use the device **IP** (a container can't resolve `*.local`). On Linux you can
+swap the port mapping for `network_mode: host` to use a `.local` name — see the
+comments in [`docker-compose.yml`](docker-compose.yml). Tear down with
+`docker compose down` (add `-v` to also drop the `node_modules` volume).
 
 ## Configuration (env)
 
-| Variable | Used by | Description |
-|---|---|---|
-| `VITE_DEVICE_HOST` | dev server | Device the Vite dev proxy forwards to. |
-| `VITE_DEFAULT_HOST` | app | Address pre-filled in the connection field. |
-| `VITE_POLL_INTERVAL` | app | Poll interval in ms (default `5000`). |
-| `VITE_PROXY_MODE` | build | `true` → same-origin requests + `X-Device-Host` header (set by `build:proxy`). |
-| `DEVICE_HOST` | Caddy | Default upstream controller for the container. |
+These only affect `npm run dev`; the production bundle (built into the firmware)
+reads none of them. Copy [`.env.example`](.env.example) to `.env`.
+
+| Variable | Description |
+|---|---|
+| `VITE_DEVICE_HOST` | Device the Vite dev proxy forwards to (IP or `.local`). |
+| `VITE_DEFAULT_HOST` | Address pre-filled in the connection field on first load. |
+| `VITE_POLL_INTERVAL` | Poll interval in ms (default `5000`). |
 
 ## Project structure
 
@@ -190,20 +127,25 @@ src/
   lib/         types, fetch/API layer, formatters, mDNS detection
   stores/      Pinia store: connection, polling, write helpers
   composables/ useLcd — LCD WebSocket client
-  components/  ui/ (primitives), cards/, control/, config/, AppHeader
-  views/       DashboardView, RawDataView
-deploy/        Caddyfile, Caddyfile.dev (reverse-proxy configs)
+  components/  ui/ (primitives), cards/, control/, config/, AppHeader, AppSidebar
+  views/       Dashboard, Stats, Control, Capacity, Mqtt, Ocpp, Firmware
 mock/          dependency-free mock SmartEVSE for offline dev
-docker-compose.yml   prod + dev profiles (see "Run with Docker Compose")
+docker-compose.yml   optional dev-only container (see Development → Option B)
 ```
+
+The firmware build packs `dist/index.html` into the device as `/app.html`
+([`build_app.py`](../build_app.py), wired into [`platformio.ini`](../platformio.ini)).
 
 ## Scripts
 
 | Script | Description |
 |---|---|
-| `npm run dev` | Vite dev server. |
-| `npm run build` | Type-check + production build to `dist/`. |
-| `npm run build:proxy` | Build in proxy mode (for the Caddy container). |
+| `npm run dev` | Vite dev server (hot reload). |
+| `npm run build` | Type-check + production build to `dist/` (hashed assets). |
+| `npm run build:singlefile` | Type-check + single self-contained `dist/index.html` (what the firmware packs). |
 | `npm run preview` | Preview the production build. |
 | `npm run type-check` | `vue-tsc` only. |
 | `npm run mock` | Run the mock SmartEVSE device. |
+
+There is no test runner; `vue-tsc` (strict) is the only automated check and
+`npm run build` gates on it.

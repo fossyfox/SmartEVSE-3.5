@@ -168,8 +168,9 @@ function togglePolling() {
               <span class="font-semibold text-slate-200">{{ store.displayHost }}</span> won't refresh
               automatically. Use Resume or Refresh.
             </template>
+            Leave empty when this page is served by the SmartEVSE itself (same origin).
             Auto-detect probes <code class="text-slate-300">SmartEVSE-&lt;serial&gt;.local</code> via your OS's mDNS resolver.
-            Note: pointing at a device by IP/host requires CORS support or a proxy — see the README.
+            Pointing at another device by IP is cross-origin and needs the Vite dev proxy — see the README.
           </p>
           <p v-if="store.lastError" class="mt-2 text-xs text-rose-300">{{ store.lastError }}</p>
         </div>

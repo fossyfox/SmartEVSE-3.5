@@ -117,10 +117,9 @@ onMounted(() => {
     <!-- Screen -->
     <div class="relative mx-auto aspect-[2/1] w-full max-w-sm overflow-hidden rounded-xl border border-white/10 bg-black">
       <!--
-        The firmware streams the framebuffer as a BMP in RGB byte order, but the
-        BMP spec is BGR, so the browser swaps R and B on decode (blue text shows
-        as red; neutral backgrounds are unaffected). This feColorMatrix swaps R
-        and B back, leaving green and neutrals untouched.
+        Firmware streams the framebuffer as BMP in RGB order, but BMP is BGR, so
+        the browser swaps R/B on decode (blue text shows as red). This swaps them
+        back; green and neutrals are untouched.
       -->
       <svg aria-hidden="true" class="absolute size-0 overflow-hidden">
         <filter id="lcd-rb-swap" color-interpolation-filters="sRGB">

@@ -7,11 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_DEFAULT_HOST?: string
   /** Polling interval in milliseconds (default 5000). */
   readonly VITE_POLL_INTERVAL?: string
-  /** When `'true'`, route all requests same-origin via the bundled proxy and
-   *  pass the chosen device in the `X-Device-Host` header (no browser CORS). */
-  readonly VITE_PROXY_MODE?: string
-  /** Origin of the bundled proxy when not same-origin (usually left empty). */
-  readonly VITE_PROXY_BASE?: string
 }
 
 interface ImportMeta {

@@ -19,7 +19,7 @@ const form = reactive({
   ca_cert: '',
 })
 
-// Keep the form in sync with device state while not actively editing.
+// Sync form with device state while not editing.
 watch(
   mqtt,
   (m) => {
