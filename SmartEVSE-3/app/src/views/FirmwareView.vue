@@ -176,6 +176,10 @@ async function onFileChosen(ev: Event): Promise<void> {
   cancelled.value = false
   message.value = `Uploading ${file.name}…`
 
+  // Suspend /settings polling for the duration: it would otherwise compete with
+  // the chunk uploads for the device's tiny connection budget. stopPolling (not
+  // pausePolling) keeps this transient — startPolling honours a real user pause.
+  store.stopPolling()
   try {
     for (let offset = 0; offset < buf.length; offset += CHUNK_SIZE) {
       if (cancelled.value) {
@@ -202,6 +206,8 @@ async function onFileChosen(ev: Event): Promise<void> {
     message.value = `Upload of ${file.name} finished. The device will reboot.`
   } catch (err) {
     fail(err)
+  } finally {
+    store.startPolling()
   }
 }
 

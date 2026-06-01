@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
+import { Agent } from 'node:http'
 
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -28,10 +29,20 @@ export default defineConfig(({ mode }) => {
     '/lcd-verify-password',
   ]
 
+  // Without this, the proxy opens a fresh TCP socket per request. A same-origin
+  // browser reuses one keep-alive socket, but the proxy doesn't by default, so a
+  // chunked firmware upload (~750 sequential POSTs to /update) piles up sockets in
+  // TIME_WAIT on the device's tiny lwIP pool until it stops accepting connections
+  // and the upload hangs halfway. Reuse a small, bounded keep-alive pool instead.
+  const keepAliveAgent = new Agent({ keepAlive: true, maxSockets: 4 })
+
   const proxy = httpTarget
     ? {
         ...Object.fromEntries(
-          httpPaths.map((path) => [path, { target: httpTarget, changeOrigin: true }]),
+          httpPaths.map((path) => [
+            path,
+            { target: httpTarget, changeOrigin: true, agent: keepAliveAgent },
+          ]),
         ),
         '/ws': {
           target: httpTarget.replace(/^http/, 'ws'),
