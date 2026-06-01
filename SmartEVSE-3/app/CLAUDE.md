@@ -47,14 +47,19 @@ There is **no test runner and no separate linter**. `vue-tsc` (strict,
 ## How it's built into the firmware
 
 - [`../build_app.py`](../build_app.py) is a PlatformIO `pre:` hook (wired into
-  [`../platformio.ini`](../platformio.ini) for the `release` and `v4` envs). It
-  runs `npm ci` (first build) + `npm run build:singlefile`, then copies
-  `dist/index.html` → `../data/app.html` (and `dist/favicon.svg` → `../data/favicon.svg`).
+  [`../platformio.ini`](../platformio.ini) for the `release` and `v4` envs). It's
+  **incremental**: it content-hashes the app sources (stored in
+  `app/.app_build_stamp`) and only runs `npm ci` (first build) +
+  `npm run build:singlefile` when they changed, then copies `dist/index.html` →
+  `../data/app.html` (and `dist/favicon.svg` → `../data/favicon.svg`). So a plain
+  firmware rebuild isn't slowed by an unchanged UI.
 - `packfs.py` then gzips everything under `../data/` into the flash image, so the
-  device serves `/app.html`. `data/app.html` and `data/favicon.svg` are build
-  artifacts (git-ignored).
-- The firmware build therefore needs **Node.js + npm**. `SKIP_APP_BUILD=1` skips
-  the app build and ships only the legacy UI.
+  device serves `/app.html`. `data/app.html`, `data/favicon.svg` and the stamp are
+  build artifacts (git-ignored).
+- Building the UI needs **Node.js + npm**; if they're absent it's skipped with a
+  warning and the firmware still builds (legacy UI only) — never a hard failure.
+  `FORCE_APP_BUILD=1` rebuilds even when the sources look unchanged;
+  `SKIP_APP_BUILD=1` skips the app build explicitly.
 - Scripts must stay cross-platform (Linux/macOS/Windows): use Vite's
   `--mode singlefile` rather than an env-var prefix in npm scripts.
 

@@ -4,6 +4,8 @@ dist-ssr
 *.local
 .env
 .env.*.local
+# Incremental-build stamp written by ../build_app.py
+.app_build_stamp
 
 # Editor / OS
 .DS_Store

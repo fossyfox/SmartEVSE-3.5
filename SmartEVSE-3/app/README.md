@@ -21,9 +21,12 @@ origin** — there is no CORS and nothing else to host. Just flash the firmware 
 open `http://<device>/app.html`.
 
 For now the two UIs coexist: the legacy page has a **"Try the new UI →"** link to
-`/app.html`, and this app has a **"Classic UI"** link back to `/`. (Building the
-firmware needs Node.js — see [Building the firmware](../../docs/building_flashing.md);
-set `SKIP_APP_BUILD=1` to ship only the legacy UI.)
+`/app.html`, and this app has a **"Classic UI"** link back to `/`. The build is
+incremental — the UI is only recompiled when its sources change (`FORCE_APP_BUILD=1`
+forces it). Compiling the UI needs Node.js; without it the firmware build just
+skips it and ships the legacy UI (see
+[Building the firmware](../../docs/building_flashing.md)). `SKIP_APP_BUILD=1` skips
+it explicitly.
 
 ## Why this exists
 
