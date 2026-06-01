@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
+import SelectMenu from '@/components/ui/SelectMenu.vue'
 import { useEvseStore } from '@/stores/evse'
 import type { CapacityInterval } from '@/lib/types'
 
@@ -21,8 +22,7 @@ const capacityMode = computed<number>(() => s.value?.settings?.capacity_mode ?? 
 const isInterval = computed(() => capacityMode.value === 2)
 const isFixed = computed(() => capacityMode.value === 1)
 
-async function setCapacityMode(e: Event) {
-  const mode = Number((e.target as HTMLSelectElement).value)
+async function setCapacityMode(mode: number) {
   busy.value = true
   try {
     await store.commit({ capacity_mode: mode })
@@ -176,15 +176,14 @@ async function clearAllIntervals() {
       <!-- Capacity mode -->
       <div class="max-w-xs">
         <label class="field-label" for="capacity_mode">Capacity Mode</label>
-        <select
+        <SelectMenu
           id="capacity_mode"
-          class="input"
-          :value="capacityMode"
+          :model-value="capacityMode"
+          :options="CAPACITY_MODES"
           :disabled="busy"
-          @change="setCapacityMode"
-        >
-          <option v-for="m in CAPACITY_MODES" :key="m.value" :value="m.value">{{ m.label }}</option>
-        </select>
+          aria-label="Capacity Mode"
+          @update:model-value="(v) => setCapacityMode(Number(v))"
+        />
       </div>
 
       <!-- Fixed: max sum mains -->

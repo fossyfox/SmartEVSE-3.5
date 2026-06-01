@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import ModeSlider from '@/components/control/ModeSlider.vue'
+import SelectMenu from '@/components/ui/SelectMenu.vue'
 import { MODE_LABELS, type ModeId } from '@/lib/types'
 import { useEvseStore } from '@/stores/evse'
 
@@ -89,9 +90,12 @@ async function activate(mode: ModeId) {
       <!-- Override current -->
       <div v-if="showOverride" class="max-w-xs">
         <label class="field-label" for="dash-override">Override current</label>
-        <select id="dash-override" v-model.number="overrideCurrent" class="input">
-          <option v-for="o in overrideOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-        </select>
+        <SelectMenu
+          id="dash-override"
+          v-model="overrideCurrent"
+          :options="overrideOptions"
+          aria-label="Override current"
+        />
         <p class="mt-1 text-xs text-slate-500">Applied when you slide to NORMAL / SOLAR / SMART.</p>
       </div>
     </div>
