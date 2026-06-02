@@ -4,4 +4,8 @@ packed_fs.c
 cmake-build-*/
 # Web UI artifacts built into data/ by build_app.py (pre: hook)
 data/app.html
-data/favicon.svg
+data/manifest.json
+data/app-sw.js
+data/apple-touch-icon.png
+data/pwa-192.png
+data/pwa-512.png

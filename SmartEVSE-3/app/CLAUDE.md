@@ -51,11 +51,13 @@ There is **no test runner and no separate linter**. `vue-tsc` (strict,
   **incremental**: it content-hashes the app sources (stored in
   `app/.app_build_stamp`) and only runs `npm ci` (first build) +
   `npm run build:singlefile` when they changed, then copies `dist/index.html` →
-  `../data/app.html` (and `dist/favicon.svg` → `../data/favicon.svg`). So a plain
-  firmware rebuild isn't slowed by an unchanged UI.
+  `../data/app.html` (plus the PWA sidecars — `manifest.json`, `app-sw.js` and the
+  home-screen icons — alongside it). So a plain firmware rebuild isn't slowed by an
+  unchanged UI.
 - `packfs.py` then gzips everything under `../data/` into the flash image, so the
-  device serves `/app.html`. `data/app.html`, `data/favicon.svg` and the stamp are
-  build artifacts (git-ignored).
+  device serves `/app.html`. `data/app.html`, the packed PWA sidecars and the stamp
+  are build artifacts (git-ignored); `data/favicon.ico` is a tracked asset the app
+  reuses.
 - Building the UI needs **Node.js + npm**; if they're absent it's skipped with a
   warning and the firmware still builds (legacy UI only) — never a hard failure.
   `FORCE_APP_BUILD=1` rebuilds even when the sources look unchanged;

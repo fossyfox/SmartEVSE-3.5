@@ -3,8 +3,6 @@
 interface ImportMetaEnv {
   /** Device host used by the Vite dev proxy (e.g. `192.168.1.50` or `smartevse.local`). */
   readonly VITE_DEVICE_HOST?: string
-  /** Default host pre-filled in the UI connection field. */
-  readonly VITE_DEFAULT_HOST?: string
   /** Polling interval in milliseconds (default 5000). */
   readonly VITE_POLL_INTERVAL?: string
 }
