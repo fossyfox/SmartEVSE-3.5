@@ -34,11 +34,14 @@ const serial = computed(() =>
   store.settings?.serialnr ? `SmartEVSE-${store.settings.serialnr}` : 'SmartEVSE (connecting)',
 )
 
-// Version-specific docs on GitHub, falling back to the master README.
+// Version-specific docs on GitHub, falling back to the master README. In the
+// demo the simulated version isn't a real tag on the fork, so always use master.
 const docsUrl = computed(() => {
+  const base = 'https://github.com/fossyfox/SmartEVSE-3.5/tree'
+  if (import.meta.env.VITE_DEMO) return `${base}/master?tab=readme-ov-file#documentation`
   const v = store.settings?.version ?? ''
   const path = v.startsWith('v') ? v : 'master?tab=readme-ov-file'
-  return `https://github.com/dingo35/SmartEVSE-3.5/tree/${path}#documentation`
+  return `${base}/${path}#documentation`
 })
 
 // `icon` is inner SVG markup (stroke-based, 24×24). Item is either an in-app

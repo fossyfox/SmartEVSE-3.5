@@ -1,13 +1,19 @@
 // Builds the demo copies of the legacy jQuery UI. For each classic page in
-// ../data it injects the compiled mock (classic-mock.js, built by
+// classic-src/ it injects the compiled mock (classic-mock.js, built by
 // vite.classic.config.ts) at the top of <head> — so the mock device is patched
 // in before any page script runs — and rewrites internal links for the static
 // Vercel layout. Output goes next to the Vue app in dist/.
 //
+// classic-src/ holds vendored copies of ../data/{index,capacity,interval,
+// update2}.html (refresh with `npm run sync:classic`). They live inside the app
+// because the Vercel build's root directory is app/, so ../data is outside it and
+// unavailable — reading from there is what made /classic.html 404. styling.css +
+// SmartEVSE.webp are vendored into public/ (copied to dist by Vite) likewise.
+//
 // Page layout on the deploy:
 //   /            -> Vue app   (dist/index.html)
 //   /app.html    -> Vue app   (vercel.json rewrite)
-//   /classic.html-> legacy home (this script, from data/index.html)
+//   /classic.html-> legacy home (this script, from classic-src/index.html)
 //   /capacity.html, /interval.html, /update2.html -> legacy sub-pages
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -15,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const appDir = resolve(here, '..')
-const dataDir = resolve(appDir, '..', 'data')
+const dataDir = resolve(appDir, 'classic-src')
 const distDir = resolve(appDir, 'dist')
 
 // The legacy home (index.html) is served at /classic.html so it doesn't collide

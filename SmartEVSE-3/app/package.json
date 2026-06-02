@@ -10,6 +10,7 @@
     "build:demo": "vue-tsc --noEmit && vite build --mode demo && vite build --mode demo --config vite.classic.config.ts && node scripts/inject-classic.mjs",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
+    "sync:classic": "node scripts/sync-classic-src.mjs",
     "mock": "node mock/device.mjs"
   },
   "keywords": [

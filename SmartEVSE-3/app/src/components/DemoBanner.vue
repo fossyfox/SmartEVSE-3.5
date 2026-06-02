@@ -21,12 +21,12 @@ function dismiss() {
     class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-brand-500/30 bg-brand-500/10 px-4 py-2 text-center text-xs text-brand-200"
   >
     <span>
-      <strong class="font-semibold text-brand-100">Demo</strong> — every value here
-      is simulated; there is no real SmartEVSE. Controls, the LCD stream (PIN
-      <span class="font-mono">1234</span>) and firmware flow all respond live.
+      <strong class="font-semibold text-brand-100">Demo</strong> — there is no real
+      SmartEVSE. The dashboard, controls, LCD stream (PIN
+      <span class="font-mono">1234</span>) and firmware flow are all simulated values.
     </span>
     <a
-      href="https://github.com/dingo35/SmartEVSE-3.5"
+      href="https://github.com/fossyfox/SmartEVSE-3.5"
       target="_blank"
       rel="noopener"
       class="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-100"

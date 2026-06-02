@@ -11,7 +11,7 @@ import { MODE_LABELS, type Settings } from '@/lib/types'
 
 // Literal so TS infers concrete (non-optional) types for everything we mutate.
 const state = {
-  version: 'v3.6.2 (demo)',
+  version: 'v4.0.0',
   serialnr: 1234,
   mode: 'NORMAL',
   mode_id: 1,
