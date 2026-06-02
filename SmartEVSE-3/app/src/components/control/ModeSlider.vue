@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { ModeId } from '@/lib/types'
 
@@ -30,14 +30,57 @@ const activeIndex = computed(() => {
   return i === -1 ? 0 : i
 })
 
-// The sliding pill is positioned as a fraction of the track width.
-const pillStyle = computed(() => {
-  const n = props.options.length || 1
-  return {
-    width: `calc(${100 / n}% - 0.5rem)`,
-    left: `calc(${(activeIndex.value / n) * 100}% + 0.25rem)`,
+// The pill hugs the active label's text (plus a little breathing room) instead
+// of filling its whole equal-width column, so a short word like OFF gets a
+// small pill and NORMAL a wider one. Measured from the live DOM so it stays
+// correct across font sizes and container widths.
+const pill = ref({ left: 0, width: 0 })
+const ready = ref(false)
+
+function measure() {
+  const el = track.value
+  if (!el) return
+  const buttons = el.querySelectorAll<HTMLElement>('.mode-slider__opt')
+  const btn = buttons[activeIndex.value]
+  if (!btn) return
+  const label = btn.querySelector<HTMLElement>('.mode-slider__label')
+  const padX = 14 // breathing room on each side of the text
+  const textWidth = label ? label.offsetWidth : btn.offsetWidth
+  // Never wider than the column (keeps short screens from overflowing).
+  const width = Math.min(textWidth + padX * 2, btn.offsetWidth)
+  const center = btn.offsetLeft + btn.offsetWidth / 2
+  pill.value = { left: center - width / 2, width }
+}
+
+const pillStyle = computed(() => ({
+  width: `${pill.value.width}px`,
+  transform: `translateX(${pill.value.left}px)`,
+}))
+
+let ro: ResizeObserver | null = null
+
+onMounted(() => {
+  nextTick(() => {
+    measure()
+    // Enable the sliding transition only after the first (instant) placement,
+    // so the pill doesn't animate in from the left edge on mount.
+    requestAnimationFrame(() => (ready.value = true))
+  })
+  if (typeof ResizeObserver !== 'undefined' && track.value) {
+    ro = new ResizeObserver(() => measure())
+    ro.observe(track.value)
   }
+  // Web fonts can shift text metrics after first paint.
+  document.fonts?.ready.then(() => measure())
 })
+
+onBeforeUnmount(() => {
+  ro?.disconnect()
+  ro = null
+})
+
+// Re-place the pill when the active mode or the visible option set changes.
+watch([activeIndex, () => props.options.map((o) => o.id).join('|')], () => nextTick(measure))
 
 function pick(id: ModeId) {
   if (props.disabled || id === props.modelValue) return
@@ -101,7 +144,7 @@ function onKeydown(e: KeyboardEvent) {
     @keydown="onKeydown"
   >
     <!-- Sliding indicator pill -->
-    <div class="mode-slider__pill" :style="pillStyle" aria-hidden="true" />
+    <div class="mode-slider__pill" :class="{ 'is-ready': ready }" :style="pillStyle" aria-hidden="true" />
 
     <!-- Labels -->
     <button
@@ -116,7 +159,7 @@ function onKeydown(e: KeyboardEvent) {
       tabindex="-1"
       @click="pick(o.id)"
     >
-      {{ o.label }}
+      <span class="mode-slider__label">{{ o.label }}</span>
     </button>
   </div>
 </template>
@@ -152,33 +195,50 @@ function onKeydown(e: KeyboardEvent) {
   cursor: not-allowed;
 }
 
-/* The pill that glides under the active label. */
+/* The pill that glides under the active label; sized to hug its text. */
 .mode-slider__pill {
   position: absolute;
+  left: 0;
   top: 0.25rem;
   bottom: 0.25rem;
   border-radius: 0.75rem;
   background: var(--color-brand-600);
   box-shadow: 0 6px 16px -4px rgb(16 185 129 / 0.5);
-  transition:
-    left 0.28s cubic-bezier(0.34, 1.4, 0.5, 1),
-    width 0.28s cubic-bezier(0.34, 1.4, 0.5, 1);
   pointer-events: none;
+}
+
+.mode-slider__pill.is-ready {
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.4, 0.5, 1),
+    width 0.28s cubic-bezier(0.34, 1.4, 0.5, 1);
 }
 
 .mode-slider__opt {
   position: relative;
   z-index: 1;
-  padding: 0.55rem 0.5rem;
+  padding: 0.45rem 0.375rem;
   border: 0;
   background: transparent;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--color-slate-400);
   cursor: pointer;
   transition: color 0.2s;
+}
+
+.mode-slider__label {
+  display: inline-block;
+}
+
+/* Roomier type on tablets/desktop where the track is wider. */
+@media (min-width: 640px) {
+  .mode-slider__opt {
+    padding: 0.55rem 0.5rem;
+    font-size: 0.875rem;
+    letter-spacing: 0.04em;
+  }
 }
 
 .mode-slider__opt:hover:not(.is-active) {
