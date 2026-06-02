@@ -101,6 +101,7 @@ and open `http://<device>/app.html` (see [How it ships](#how-it-ships)).
 ```bash
 git clone https://github.com/fossyfox/SmartEVSE-3.5.git
 cd SmartEVSE-3.5/SmartEVSE-3/app
+git checkout vue-based-ui
 ```
 
 Both options run the same dev server, on Linux/macOS/Windows, and fix CORS via
