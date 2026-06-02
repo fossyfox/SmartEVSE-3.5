@@ -26,6 +26,26 @@ WebSocket protocol), read the firmware's legacy single-file jQuery/Bootstrap UI
 at **`../data/index.html`** — this app reimplements its behaviour. The `/settings`
 JSON shape is mirrored in `src/lib/types.ts`.
 
+## Working in parallel (git worktrees)
+
+When more than one Claude session may run against this repo at the same time, do
+your work in a dedicated **git worktree** so concurrent processes don't collide
+on shared files, the checked-out branch, or build artifacts (`app/node_modules`,
+`app/dist`, `app/.app_build_stamp`, `../data/app.html`). Each worktree is an
+independent checkout on its own branch, so edits and builds stay isolated.
+
+```bash
+# from the repo root — create an isolated checkout on a new branch
+git worktree add ../SmartEVSE-3.5-<task> -b <task>
+cd ../SmartEVSE-3.5-<task>/SmartEVSE-3/app && npm install   # worktrees don't share node_modules
+# ...do the work, commit on the branch...
+git worktree remove ../SmartEVSE-3.5-<task>                 # when merged or abandoned
+```
+
+- One worktree per task/branch; never point two sessions at the same one.
+- `node_modules` is per-worktree (git-ignored), so run `npm install` once in each
+  new worktree before building.
+
 ## Commands
 
 All from `app/`:

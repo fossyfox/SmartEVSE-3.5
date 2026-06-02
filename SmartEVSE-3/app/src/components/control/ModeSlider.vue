@@ -30,10 +30,11 @@ const activeIndex = computed(() => {
   return i === -1 ? 0 : i
 })
 
-// The pill hugs the active label's text (plus a little breathing room) instead
-// of filling its whole equal-width column, so a short word like OFF gets a
-// small pill and NORMAL a wider one. Measured from the live DOM so it stays
-// correct across font sizes and container widths.
+// The pill fills the active option's equal-width column — i.e. 1/N of the
+// track (1/5 with all five modes shown). Every column is the same width, so
+// the pill's width never changes and only its position slides between modes.
+// Measured from the live DOM so it stays correct across font sizes and
+// container widths.
 const pill = ref({ left: 0, width: 0 })
 const ready = ref(false)
 
@@ -43,13 +44,7 @@ function measure() {
   const buttons = el.querySelectorAll<HTMLElement>('.mode-slider__opt')
   const btn = buttons[activeIndex.value]
   if (!btn) return
-  const label = btn.querySelector<HTMLElement>('.mode-slider__label')
-  const padX = 14 // breathing room on each side of the text
-  const textWidth = label ? label.offsetWidth : btn.offsetWidth
-  // Never wider than the column (keeps short screens from overflowing).
-  const width = Math.min(textWidth + padX * 2, btn.offsetWidth)
-  const center = btn.offsetLeft + btn.offsetWidth / 2
-  pill.value = { left: center - width / 2, width }
+  pill.value = { left: btn.offsetLeft, width: btn.offsetWidth }
 }
 
 const pillStyle = computed(() => ({
@@ -195,7 +190,7 @@ function onKeydown(e: KeyboardEvent) {
   cursor: not-allowed;
 }
 
-/* The pill that glides under the active label; sized to hug its text. */
+/* The pill that glides under the active label; one column (1/N) wide. */
 .mode-slider__pill {
   position: absolute;
   left: 0;
@@ -208,9 +203,10 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 .mode-slider__pill.is-ready {
+  /* Plain glide — slide to the new column, no spring/overshoot. */
   transition:
-    transform 0.28s cubic-bezier(0.34, 1.4, 0.5, 1),
-    width 0.28s cubic-bezier(0.34, 1.4, 0.5, 1);
+    transform 0.25s ease,
+    width 0.25s ease;
 }
 
 .mode-slider__opt {
