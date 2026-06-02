@@ -3,6 +3,8 @@ SmartEVSE v3
 
 Smart Electric Vehicle Charge Controller
 
+🔌 **Try the live demo:** https://smartevse-demo.vercel.app
+
 ![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
 
 # What is it?

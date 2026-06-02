@@ -26,6 +26,26 @@ WebSocket protocol), read the firmware's legacy single-file jQuery/Bootstrap UI
 at **`../data/index.html`** — this app reimplements its behaviour. The `/settings`
 JSON shape is mirrored in `src/lib/types.ts`.
 
+## Working in parallel (git worktrees)
+
+When more than one Claude session may run against this repo at the same time, do
+your work in a dedicated **git worktree** so concurrent processes don't collide
+on shared files, the checked-out branch, or build artifacts (`app/node_modules`,
+`app/dist`, `app/.app_build_stamp`, `../data/app.html`). Each worktree is an
+independent checkout on its own branch, so edits and builds stay isolated.
+
+```bash
+# from the repo root — create an isolated checkout on a new branch
+git worktree add ../SmartEVSE-3.5-<task> -b <task>
+cd ../SmartEVSE-3.5-<task>/SmartEVSE-3/app && npm install   # worktrees don't share node_modules
+# ...do the work, commit on the branch...
+git worktree remove ../SmartEVSE-3.5-<task>                 # when merged or abandoned
+```
+
+- One worktree per task/branch; never point two sessions at the same one.
+- `node_modules` is per-worktree (git-ignored), so run `npm install` once in each
+  new worktree before building.
+
 ## Commands
 
 All from `app/`:
@@ -51,11 +71,13 @@ There is **no test runner and no separate linter**. `vue-tsc` (strict,
   **incremental**: it content-hashes the app sources (stored in
   `app/.app_build_stamp`) and only runs `npm ci` (first build) +
   `npm run build:singlefile` when they changed, then copies `dist/index.html` →
-  `../data/app.html` (and `dist/favicon.svg` → `../data/favicon.svg`). So a plain
-  firmware rebuild isn't slowed by an unchanged UI.
+  `../data/app.html` (plus the PWA sidecars — `manifest.json`, `app-sw.js` and the
+  home-screen icons — alongside it). So a plain firmware rebuild isn't slowed by an
+  unchanged UI.
 - `packfs.py` then gzips everything under `../data/` into the flash image, so the
-  device serves `/app.html`. `data/app.html`, `data/favicon.svg` and the stamp are
-  build artifacts (git-ignored).
+  device serves `/app.html`. `data/app.html`, the packed PWA sidecars and the stamp
+  are build artifacts (git-ignored); `data/favicon.ico` is a tracked asset the app
+  reuses.
 - Building the UI needs **Node.js + npm**; if they're absent it's skipped with a
   warning and the firmware still builds (legacy UI only) — never a hard failure.
   `FORCE_APP_BUILD=1` rebuilds even when the sources look unchanged;
