@@ -1,0 +1,15 @@
+{
+  "name": "SmartEVSE",
+  "short_name": "SmartEVSE",
+  "description": "Monitor and control your SmartEVSE V3 EV charger.",
+  "start_url": "app.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    { "src": "pwa-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "pwa-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "pwa-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

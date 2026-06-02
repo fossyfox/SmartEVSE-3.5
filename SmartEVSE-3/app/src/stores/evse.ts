@@ -26,7 +26,7 @@ function loadStoredHost(): string {
   } catch {
     /* storage unavailable */
   }
-  return import.meta.env.VITE_DEFAULT_HOST ?? ''
+  return ''
 }
 
 function loadStoredPollPaused(): boolean {

@@ -59,12 +59,12 @@ function togglePolling() {
             <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
           </svg>
         </button>
-        <h1 class="text-base font-bold tracking-tight">{{ pageTitle }}</h1>
+        <h1 class="text-sm font-bold tracking-tight lg:text-base">{{ pageTitle }}</h1>
       </div>
 
       <div class="ml-auto flex items-center gap-2 sm:gap-3">
-        <span class="hidden text-xs text-slate-400 sm:inline">updated {{ updatedLabel }}</span>
-        <StatusBadge :status="store.status" />
+        <span class="hidden text-xs text-slate-400 lg:inline">updated {{ updatedLabel }}</span>
+        <StatusBadge :status="store.status" collapse />
         <button
           class="btn btn-sm"
           :title="store.polling ? 'Pause automatic polling' : 'Resume automatic polling'"
@@ -84,14 +84,14 @@ function togglePolling() {
           <svg v-else viewBox="0 0 24 24" class="size-4" fill="currentColor" aria-hidden="true">
             <path d="M8 5v14l11-7z" />
           </svg>
-          <span class="hidden sm:inline">{{ store.polling ? 'Pause' : 'Resume' }}</span>
+          <span class="hidden lg:inline">{{ store.polling ? 'Pause' : 'Resume' }}</span>
         </button>
         <button class="btn btn-sm" :disabled="!store.host && false" @click="store.refreshNow()">
           <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-3-6.7L21 8" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M21 3v5h-5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          <span class="hidden sm:inline">Refresh</span>
+          <span class="hidden lg:inline">Refresh</span>
         </button>
         <button
           class="btn btn-sm btn-danger"
@@ -103,7 +103,7 @@ function togglePolling() {
             <path d="M21 12a9 9 0 1 1-3-6.7L21 8" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M21 3v5h-5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          <span class="hidden sm:inline">{{ rebooting ? 'Rebooting…' : 'Reboot' }}</span>
+          <span class="hidden lg:inline">{{ rebooting ? 'Rebooting…' : 'Reboot' }}</span>
         </button>
       </div>
     </div>

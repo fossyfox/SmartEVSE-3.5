@@ -19,10 +19,22 @@ import os, sys, shutil, subprocess, hashlib
 
 APP_DIR = "app"
 DIST_HTML = os.path.join(APP_DIR, "dist", "index.html")
-DIST_FAVICON = os.path.join(APP_DIR, "dist", "favicon.svg")
 OUT_HTML = os.path.join("data", "app.html")
-OUT_FAVICON = os.path.join("data", "favicon.svg")
 STAMP = os.path.join(APP_DIR, ".app_build_stamp")
+
+# Static sidecar assets emitted alongside index.html (from app/public/): the PWA
+# manifest, service worker and home-screen icons. Copied verbatim into data/ so
+# the device serves them next to /app.html; packfs.py gzips and packs them, and
+# Mongoose maps their extensions to the right MIME types (.json, .js, .png).
+# (favicon.ico is already a tracked data/ asset — the device's own plug icon —
+# so it isn't copied here; the app just reuses it.)
+SIDECARS = [
+    "manifest.json",
+    "app-sw.js",
+    "apple-touch-icon.png",
+    "pwa-192.png",
+    "pwa-512.png",
+]
 
 # Inputs that determine the built bundle. Docs, mock, .env and node_modules are
 # excluded so editing them doesn't trigger a rebuild.
@@ -104,8 +116,10 @@ def main():
     if not os.path.isfile(DIST_HTML):
         sys.exit("build_app.py: expected %s after build — not found" % DIST_HTML)
     shutil.copy(DIST_HTML, OUT_HTML)
-    if os.path.isfile(DIST_FAVICON):
-        shutil.copy(DIST_FAVICON, OUT_FAVICON)
+    for name in SIDECARS:
+        src = os.path.join(APP_DIR, "dist", name)
+        if os.path.isfile(src):
+            shutil.copy(src, os.path.join("data", name))
     with open(STAMP, "w") as f:
         f.write(current)
     print("build_app.py: packed web UI -> %s" % OUT_HTML)
