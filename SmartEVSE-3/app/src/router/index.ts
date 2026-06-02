@@ -54,6 +54,12 @@ export const router = createRouter({
       meta: { title: 'Firmware' },
       component: () => import('@/views/FirmwareView.vue'),
     },
+    {
+      path: '/raw',
+      name: 'raw',
+      meta: { title: 'Raw Data' },
+      component: () => import('@/views/RawView.vue'),
+    },
     // Back-compat: the page used to be /system.
     { path: '/system', redirect: { name: 'firmware' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
