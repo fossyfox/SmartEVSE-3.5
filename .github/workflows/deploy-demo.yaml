@@ -1,0 +1,56 @@
+# Deploys the Vue demo to Vercel (project: smartevse-demo).
+#
+# The "demo" is the SmartEVSE-3/app folder built with `npm run build:demo` — the
+# self-contained, in-browser-mock build that needs no real device. Build settings
+# (framework, build command, output dir, rewrites) come from SmartEVSE-3/app/
+# vercel.json, so this workflow only drives the Vercel CLI from that folder.
+#
+# One-time setup — add three repository secrets under
+#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret:
+#     VERCEL_TOKEN       create at Vercel → Account Settings → Tokens
+#     VERCEL_ORG_ID      team_cgT0U5Ey7QtbrSF5pYYWD7Ov    (the smartevse-demo team)
+#     VERCEL_PROJECT_ID  prj_g4fhotLHzOlGDDZjMKwKAIAAeBEN (the smartevse-demo project)
+#   The two IDs are also in SmartEVSE-3/app/.vercel/project.json.
+name: Deploy demo to Vercel
+
+on:
+  push:
+    branches: [demo-ui]
+    paths:
+      - 'SmartEVSE-3/app/**'
+      - '.github/workflows/deploy-demo.yaml'
+  workflow_dispatch:
+
+# Only one deploy at a time; a newer push cancels an in-flight run.
+concurrency:
+  group: vercel-demo
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SmartEVSE-3/app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build demo (runs `npm run build:demo` per vercel.json)
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Deploy to Vercel production
+        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
