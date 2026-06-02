@@ -1,33 +1,39 @@
-// Synthesises the SmartEVSE LCD frames for the demo build, mimicking the real
-// device screen: blue blocky text on a white field between two horizontal rules.
-// The text shown for each mode/state matches the firmware's GLCD() status screen
-// (../../../src/glcd.cpp) — e.g. "READY TO CHARGE", "CHARGING / 10.0A", or the
+// Synthesises the SmartEVSE LCD frames for the demo build pixel-for-pixel with
+// the real device: the firmware's own hires bitmap font (font2.ts, generated
+// from src/font2.cpp) on a 128×64 framebuffer, laid out exactly like GLCD()
+// (../../../src/glcd.cpp) — 1px rules and 16px text rows. The text per mode/state
+// also matches GLCD() — e.g. "READY TO CHARGE", "CHARGING / 10.0A", or the
 // Smart/Solar status line that cycles MODE→CHARGING→kW→kWh→A. The device streams
-// its framebuffer as BMP over `/ws/lcd`; here we draw the screen to a canvas and
-// encode it as a 24-bit BMP so `useLcd` renders it unchanged.
+// its framebuffer as BMP over `/ws/lcd`; here we build the same framebuffer and
+// encode it as a 24-bit BMP at native 128×64 so `useLcd` renders it unchanged.
 //
 // Colour/byte order: the firmware writes pixels in RGB order even though BMP is
 // BGR; the new UI (LcdCard.vue) undoes that with an R/B-swap filter, so we match
 // the firmware and write RGB order here too — then the new UI shows true colours.
 // The legacy page renders the BMP raw, so classic.ts injects the same swap there.
 import { lcdInfo } from './device'
+import { FONT2 } from './font2'
 
-// Native-ish low resolution, then nearest-neighbour upscaled 2x so the text has
-// the chunky pixelated look of the real LCD regardless of how a page scales it.
+// The device's native LCD resolution. We emit the BMP at exactly this size — no
+// scaling — so it's a 1:1 copy of the device framebuffer; the <img> in LcdCard
+// upscales it for display (image-rendering: pixelated).
 const LCD_W = 128
 const LCD_H = 64
-const SCALE = 2
-const OUT_W = LCD_W * SCALE
-const OUT_H = LCD_H * SCALE
 
-const BLUE = 'rgb(22,22,205)'
-const WHITE = 'rgb(255,255,255)'
-const FONT = 'Arial, Helvetica, sans-serif'
+// LCD ink, true blue. encodeBmp writes it RGB-order (the firmware quirk) and
+// LcdCard's R/B-swap filter restores it — see the file header.
+const INK = { r: 22, g: 22, b: 205 }
 
-let lcd: HTMLCanvasElement | null = null
-let lcdCtx: CanvasRenderingContext2D | null = null
-let out: HTMLCanvasElement | null = null
-let outCtx: CanvasRenderingContext2D | null = null
+// Layout taken verbatim from the firmware's GLCD() status screen (glcd.cpp):
+// 1px full-width rules where glcd_clrln(1,0x04)/(6,0x10) land, and 16px text at
+// 8px "pages" 2 and 4 (the GLCD_print_buf2 row arguments).
+const RULE_TOP_Y = 10 // page 1, bit 2
+const RULE_BOTTOM_Y = 52 // page 6, bit 4
+// Text-row top pixels. Two lines sit on the firmware's pages 2 and 4 (rows 16
+// and 32); a lone line is centered between them, so it sits midway in the frame.
+const TEXT_Y_1 = 16
+const TEXT_Y_2 = 32
+const TEXT_Y_SINGLE = (TEXT_Y_1 + TEXT_Y_2) / 2 // 24
 
 // In Smart/Solar the firmware's bottom status line auto-cycles roughly every
 // 4 s (GLCD() runs ~1×/s). install.ts pushes a frame every second too, so we
@@ -40,29 +46,6 @@ let cycleStep = 0
 /** Nudge the Smart/Solar status line forward (driven by demo button presses). */
 export function advanceLcdCycle(): void {
   cycleStep++
-}
-
-function contexts(): { lo: CanvasRenderingContext2D; hi: CanvasRenderingContext2D } {
-  if (!lcdCtx || !outCtx) {
-    lcd = document.createElement('canvas')
-    lcd.width = LCD_W
-    lcd.height = LCD_H
-    lcdCtx = lcd.getContext('2d')!
-    out = document.createElement('canvas')
-    out.width = OUT_W
-    out.height = OUT_H
-    outCtx = out.getContext('2d', { willReadFrequently: true })!
-  }
-  return { lo: lcdCtx, hi: outCtx }
-}
-
-/** Largest bold pixel size at which every line fits within maxW. */
-function fitFont(c: CanvasRenderingContext2D, lines: string[], maxW: number, maxPx: number): number {
-  for (let px = maxPx; px > 6; px--) {
-    c.font = `bold ${px}px ${FONT}`
-    if (lines.every((l) => c.measureText(l).width <= maxW)) return px
-  }
-  return 6
 }
 
 /**
@@ -102,34 +85,66 @@ function screenLines(info: ReturnType<typeof lcdInfo>): string[] {
   }
 }
 
-function drawScreen(): void {
-  const { lo: c } = contexts()
-  c.fillStyle = WHITE
-  c.fillRect(0, 0, LCD_W, LCD_H)
+/** Light one ink pixel in the RGBA framebuffer (bounds-checked). */
+function setPixel(d: Uint8ClampedArray, x: number, y: number): void {
+  if (x < 0 || x >= LCD_W || y < 0 || y >= LCD_H) return
+  const i = (y * LCD_W + x) * 4
+  d[i] = INK.r
+  d[i + 1] = INK.g
+  d[i + 2] = INK.b
+}
 
-  // Two horizontal rules — the signature SmartEVSE status-screen frame.
-  c.fillStyle = BLUE
-  c.fillRect(7, 12, LCD_W - 14, 2)
-  c.fillRect(7, LCD_H - 14, LCD_W - 14, 2)
-
-  const lines = screenLines(lcdInfo())
-  c.fillStyle = BLUE
-  c.textAlign = 'center'
-  c.textBaseline = 'middle'
-  const cx = LCD_W / 2
-  const maxW = LCD_W - 16
-
-  if (lines.length === 1) {
-    c.font = `bold ${fitFont(c, lines, maxW, 26)}px ${FONT}`
-    c.fillText(lines[0], cx, LCD_H / 2 + 1)
-  } else {
-    const px = fitFont(c, lines, maxW, 20)
-    c.font = `bold ${px}px ${FONT}`
-    const gap = px + 3
-    const top = LCD_H / 2 - gap / 2 + 1
-    c.fillText(lines[0], cx, top)
-    c.fillText(lines[1], cx, top + gap)
+/**
+ * Blit one font2 string into the framebuffer, horizontally centered with its top
+ * at pixel row `yTop` — a faithful port of the firmware's GLCD_print_buf2 /
+ * GLCD_write_buf2. Each glyph is `width` columns of two stacked bytes (top then
+ * bottom page), bit n being the pixel n rows down, followed by a 2px gap.
+ * Centering uses `64 - text_length2/2` with the device's integer truncation.
+ */
+function drawLine(d: Uint8ClampedArray, str: string, yTop: number): void {
+  let total = 0
+  for (let i = 0; i < str.length; i++) total += (FONT2[str.charCodeAt(i)]?.[0] ?? 0) + 2
+  let x = 64 - ((total - 2) >> 1)
+  for (let i = 0; i < str.length; i++) {
+    const glyph = FONT2[str.charCodeAt(i)]
+    if (!glyph) {
+      x += 2
+      continue
+    }
+    const width = glyph[0]
+    for (let col = 0; col < width; col++) {
+      const top = glyph[1 + col * 2]
+      const bottom = glyph[2 + col * 2]
+      for (let bit = 0; bit < 8; bit++) {
+        if (top & (1 << bit)) setPixel(d, x + col, yTop + bit)
+        if (bottom & (1 << bit)) setPixel(d, x + col, yTop + 8 + bit)
+      }
+    }
+    x += width + 2
   }
+}
+
+/** Compose the current status screen into a fresh 128×64 RGBA framebuffer. */
+function drawScreen(): Uint8ClampedArray {
+  const d = new Uint8ClampedArray(LCD_W * LCD_H * 4)
+  d.fill(255) // white field, fully opaque
+
+  for (let x = 0; x < LCD_W; x++) {
+    setPixel(d, x, RULE_TOP_Y)
+    setPixel(d, x, RULE_BOTTOM_Y)
+  }
+
+  // Two lines fill the firmware's text rows; a single line is centered between
+  // them so short screens (PAUSE, Smart/Solar status) sit mid-frame.
+  const lines = screenLines(lcdInfo())
+  if (lines.length > 1) {
+    drawLine(d, lines[0], TEXT_Y_1)
+    drawLine(d, lines[1], TEXT_Y_2)
+  } else {
+    drawLine(d, lines[0], TEXT_Y_SINGLE)
+  }
+
+  return d
 }
 
 /**
@@ -171,14 +186,9 @@ function encodeBmp(rgba: Uint8ClampedArray, w: number, h: number): ArrayBuffer {
   return buf
 }
 
-/** Render the current LCD state as a BMP frame. */
+/** Render the current LCD state as a native-resolution 128×64 BMP frame. */
 export function renderLcdFrame(): ArrayBuffer {
   frameTick++
   if (frameTick % CYCLE_EVERY_FRAMES === 0) cycleStep++
-  drawScreen()
-  const { hi } = contexts()
-  hi.imageSmoothingEnabled = false
-  hi.clearRect(0, 0, OUT_W, OUT_H)
-  hi.drawImage(lcd!, 0, 0, LCD_W, LCD_H, 0, 0, OUT_W, OUT_H)
-  return encodeBmp(hi.getImageData(0, 0, OUT_W, OUT_H).data, OUT_W, OUT_H)
+  return encodeBmp(drawScreen(), LCD_W, LCD_H)
 }

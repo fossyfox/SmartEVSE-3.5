@@ -83,11 +83,13 @@ function release(name: string) {
   if (unlocked.value && !lcd.paused.value) lcd.releaseButton(name)
 }
 
+// Icons mirror the device's silk-screen (and the classic UI's device photo):
+// ▼ at the left button, a plain round select button in the middle, ▲ at the right.
 const buttons = [
-  { name: 'left', label: 'Left' },
-  { name: 'middle', label: 'Middle' },
-  { name: 'right', label: 'Right' },
-]
+  { name: 'left', label: 'Left', icon: 'down' },
+  { name: 'middle', label: 'Middle', icon: 'select' },
+  { name: 'right', label: 'Right', icon: 'up' },
+] as const
 
 onMounted(() => {
   const stored = sessionStorage.getItem(PIN_KEY)
@@ -157,20 +159,26 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Buttons -->
-    <div class="mt-4 grid grid-cols-3 gap-2">
+    <!-- Buttons — round, like the device's physical keys -->
+    <div class="mx-auto mt-4 flex max-w-sm items-center justify-around">
       <button
         v-for="b in buttons"
         :key="b.name"
         type="button"
-        class="btn select-none"
+        class="grid size-12 cursor-pointer place-items-center rounded-full border border-white/10 bg-white/5 text-slate-100 transition select-none hover:bg-white/10 active:scale-95"
         :class="{ 'opacity-50': !unlocked || lcd.paused.value }"
+        :aria-label="b.label"
+        :title="b.label"
         @pointerdown="press(b.name, $event)"
         @pointerup="release(b.name)"
         @pointercancel="release(b.name)"
         @pointerleave="release(b.name)"
       >
-        {{ b.label }}
+        <svg viewBox="0 0 24 24" class="size-6" fill="currentColor" aria-hidden="true">
+          <path v-if="b.icon === 'down'" d="M12 16 5 7h14z" />
+          <circle v-else-if="b.icon === 'select'" cx="12" cy="12" r="4.5" />
+          <path v-else d="M12 8 5 17h14z" />
+        </svg>
       </button>
     </div>
 
