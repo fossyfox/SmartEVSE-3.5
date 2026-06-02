@@ -7,7 +7,7 @@
 // in the `--mode demo` build (see main.ts) and the injected classic-page bundle
 // (see classic.ts).
 import { handleDeviceRequest, isDevicePath } from './handler'
-import { cycleLcdPage, renderLcdFrame } from './lcd'
+import { advanceLcdCycle, renderLcdFrame } from './lcd'
 
 function installFetch(): void {
   const original = window.fetch.bind(window)
@@ -223,7 +223,7 @@ function installWebSocket(): void {
       try {
         const msg = JSON.parse(data) as { button?: string; state?: number }
         if (msg.state === 0 && (msg.button === 'left' || msg.button === 'right')) {
-          cycleLcdPage()
+          advanceLcdCycle()
           this.push()
         }
       } catch {

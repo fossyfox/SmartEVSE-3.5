@@ -212,22 +212,27 @@ export function verifyPin(pin: string): boolean {
   return pin === '1234'
 }
 
-/** Compact view of the live state for the LCD renderer. */
+/**
+ * Compact view of the live state for the LCD renderer — the values the
+ * firmware's GLCD() status screen actually prints (see src/lib/demo/lcd.ts).
+ * `amps` is the *set* charge current Balanced[0], which the firmware exposes as
+ * settings.charge_current and prints as "x.xA" — not the measured EV current.
+ */
 export function lcdInfo(): {
   mode: string
   charging: boolean
   amps: number
   power: number
-  soc: number
-  temp: number
+  energyWh: number
+  phases: number
 } {
   return {
     mode: state.mode,
     charging: isChargingMode(),
-    amps: (state.ev_meter.currents.TOTAL ?? 0) / 10,
+    amps: state.settings.charge_current / 10,
     power: state.ev_meter.import_active_power,
-    soc: Math.round(state.ev_state.computed_soc),
-    temp: state.evse.temp,
+    energyWh: state.ev_meter.charged_wh,
+    phases: state.evse.nrofphases,
   }
 }
 

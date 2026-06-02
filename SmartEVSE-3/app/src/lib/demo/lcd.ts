@@ -1,8 +1,10 @@
 // Synthesises the SmartEVSE LCD frames for the demo build, mimicking the real
-// device screen: blue blocky text on a white field between two horizontal rules
-// (e.g. "READY TO CHARGE"). The device streams its framebuffer as BMP over
-// `/ws/lcd`; here we draw the screen to a canvas and encode it as a 24-bit BMP so
-// `useLcd` renders it unchanged.
+// device screen: blue blocky text on a white field between two horizontal rules.
+// The text shown for each mode/state matches the firmware's GLCD() status screen
+// (../../../src/glcd.cpp) — e.g. "READY TO CHARGE", "CHARGING / 10.0A", or the
+// Smart/Solar status line that cycles MODE→CHARGING→kW→kWh→A. The device streams
+// its framebuffer as BMP over `/ws/lcd`; here we draw the screen to a canvas and
+// encode it as a 24-bit BMP so `useLcd` renders it unchanged.
 //
 // Colour/byte order: the firmware writes pixels in RGB order even though BMP is
 // BGR; the new UI (LcdCard.vue) undoes that with an R/B-swap filter, so we match
@@ -27,13 +29,17 @@ let lcdCtx: CanvasRenderingContext2D | null = null
 let out: HTMLCanvasElement | null = null
 let outCtx: CanvasRenderingContext2D | null = null
 
-// Which screen the buttons have cycled to.
-const PAGES = 2
-let page = 0
+// In Smart/Solar the firmware's bottom status line auto-cycles roughly every
+// 4 s (GLCD() runs ~1×/s). install.ts pushes a frame every second too, so we
+// advance the cycle every 4th frame to match; a button press also nudges it
+// forward for instant feedback.
+const CYCLE_EVERY_FRAMES = 4
+let frameTick = 0
+let cycleStep = 0
 
-/** Advance to the next LCD screen (driven by demo button presses). */
-export function cycleLcdPage(): void {
-  page = (page + 1) % PAGES
+/** Nudge the Smart/Solar status line forward (driven by demo button presses). */
+export function advanceLcdCycle(): void {
+  cycleStep++
 }
 
 function contexts(): { lo: CanvasRenderingContext2D; hi: CanvasRenderingContext2D } {
@@ -59,15 +65,41 @@ function fitFont(c: CanvasRenderingContext2D, lines: string[], maxW: number, max
   return 6
 }
 
-/** The text shown on the current screen, by simulated device state. */
+/**
+ * The lines the firmware's GLCD() shows for the current state (see
+ * ../../../src/glcd.cpp). The demo keeps the real device's two-rule, big-text
+ * frame for every mode instead of redrawing the Smart/Solar flow diagram, but
+ * the text and values match what the device actually displays.
+ */
 function screenLines(info: ReturnType<typeof lcdInfo>): string[] {
-  if (page === 1) {
-    return [`${(info.power / 1000).toFixed(1)} kW`, `${info.soc}% SOC`]
+  switch (info.mode) {
+    // AccessStatus OFF, no RFID / delayed start → "ACCESS DENIED".
+    case 'OFF':
+      return ['ACCESS', 'DENIED']
+    // AccessStatus PAUSE → a single "PAUSE" line.
+    case 'PAUSE':
+      return ['PAUSE']
+    // Smart/Solar draw a flow diagram with an auto-cycling status line; show
+    // that line's real values: "<MODE> <n>P" → CHARGING → kW → kWh → A.
+    case 'SMART':
+    case 'SOLAR': {
+      if (!info.charging) return ['READY']
+      const cycle = [
+        `${info.mode} ${info.phases}P`,
+        'CHARGING',
+        `${(info.power / 1000).toFixed(1)} kW`,
+        `${(info.energyWh / 1000).toFixed(2)} kWh`,
+        `${info.amps.toFixed(1)} A`,
+      ]
+      return [cycle[cycleStep % cycle.length]]
+    }
+    // NORMAL: STATE C shows "CHARGING / <set current>A"; otherwise "READY TO
+    // CHARGE". (`amps` is Balanced[0] = settings.charge_current.)
+    case 'NORMAL':
+    default:
+      if (info.charging) return ['CHARGING', `${info.amps.toFixed(1)}A`]
+      return ['READY TO', 'CHARGE']
   }
-  if (info.charging) return ['CHARGING', `${Math.round(info.amps)} A`]
-  if (info.mode === 'OFF') return ['OFF']
-  if (info.mode === 'PAUSE') return ['PAUSED']
-  return ['READY TO', 'CHARGE']
 }
 
 function drawScreen(): void {
@@ -141,6 +173,8 @@ function encodeBmp(rgba: Uint8ClampedArray, w: number, h: number): ArrayBuffer {
 
 /** Render the current LCD state as a BMP frame. */
 export function renderLcdFrame(): ArrayBuffer {
+  frameTick++
+  if (frameTick % CYCLE_EVERY_FRAMES === 0) cycleStep++
   drawScreen()
   const { hi } = contexts()
   hi.imageSmoothingEnabled = false
