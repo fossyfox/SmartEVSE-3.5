@@ -5,11 +5,13 @@ import { RouterView, useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import ConnectPrompt from '@/components/ConnectPrompt.vue'
+import DemoBanner from '@/components/DemoBanner.vue'
 import { useEvseStore } from '@/stores/evse'
 
 const store = useEvseStore()
 const route = useRoute()
 
+const isDemo = Boolean(import.meta.env.VITE_DEMO)
 const sidebarOpen = ref(false)
 
 // First-connect / empty state. The Raw Data view fetches independently and
@@ -51,6 +53,7 @@ onUnmounted(() => {
     </Transition>
 
     <div class="lg:pl-64">
+      <DemoBanner v-if="isDemo" />
       <AppHeader v-model:open="sidebarOpen" />
       <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <ConnectPrompt v-if="showPrompt" />

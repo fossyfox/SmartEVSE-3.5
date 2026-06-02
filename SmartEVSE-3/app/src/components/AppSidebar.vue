@@ -16,6 +16,10 @@ const route = useRoute()
 // SPA. Warn instead; the link works once the firmware is deployed on the device.
 const isDev = import.meta.env.DEV
 
+// On a real device the legacy UI is the device's own /index.html; in the demo
+// deploy the Vue app owns /index.html, so the legacy UI is served at /classic.html.
+const classicHref = import.meta.env.VITE_DEMO ? '/classic.html' : '/index.html'
+
 function onClassicUi(e: MouseEvent) {
   if (!isDev) return
   e.preventDefault()
@@ -246,9 +250,10 @@ function closeOnMobile() {
           <path d="M7 17 17 7M9 7h8v8" />
         </svg>
       </a>
-      <!-- Switch back to the device's legacy single-file UI (served at /index.html). -->
+      <!-- Switch back to the device's legacy single-file UI (served at /index.html;
+           /classic.html in the demo deploy). -->
       <a
-        href="/index.html"
+        :href="classicHref"
         class="group mb-3 flex items-center gap-2 px-1 text-xs font-medium text-slate-400 transition hover:text-slate-200"
         @click="onClassicUi"
       >

@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_DEFAULT_HOST?: string
   /** Polling interval in milliseconds (default 5000). */
   readonly VITE_POLL_INTERVAL?: string
+  /** Set by `--mode demo`: serve a self-contained, in-browser-mocked demo. */
+  readonly VITE_DEMO?: string
 }
 
 interface ImportMeta {
