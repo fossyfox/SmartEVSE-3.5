@@ -124,8 +124,16 @@
   }
 
   .input {
-    @apply w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100
+    @apply w-full min-w-0 max-w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100
       placeholder:text-slate-500 focus:border-brand-500 focus:outline-none;
+  }
+
+  /* iOS Safari gives datetime-local inputs an intrinsic min-width via the native
+     control, which overflows narrow grid/flex columns. Reset the native appearance
+     so the input honours its container width. */
+  .input[type='datetime-local'] {
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .field-label {
