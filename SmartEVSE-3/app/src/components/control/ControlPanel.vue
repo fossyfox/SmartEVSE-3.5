@@ -116,11 +116,11 @@ const setEvccid = () => store.commit({ required_evccid: requiredEvccid.value })
       <div>
         <div class="field-label">Delayed start / stop</div>
         <div class="grid gap-3 sm:grid-cols-3 sm:items-end">
-          <div>
+          <div class="min-w-0">
             <label class="field-label" for="starttime">Start</label>
             <input id="starttime" v-model="startTime" type="datetime-local" class="input" />
           </div>
-          <div>
+          <div class="min-w-0">
             <label class="field-label" for="stoptime">End</label>
             <input id="stoptime" v-model="stopTime" type="datetime-local" class="input" />
           </div>
