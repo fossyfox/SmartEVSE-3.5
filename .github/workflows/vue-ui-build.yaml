@@ -59,3 +59,36 @@ jobs:
           path: ui-dist/*
           retention-days: 60
           if-no-files-found: error
+
+      # Publish the same files as a pre-release so there's a login-free download
+      # URL (artifacts above expire and need an Actions login; this doesn't), e.g.
+      #   https://github.com/<owner>/<repo>/releases/download/vue-ui-<n>/app.html
+      # A NEW, immutable tag is created on every push (vue-ui-<run-number>) and
+      # prior releases are kept, so each build stays permanently downloadable.
+      # Uses the built-in gh CLI, so no extra action and no Node.js to deprecate.
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "vue-ui-${{ github.run_number }}" "$GITHUB_WORKSPACE"/ui-dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Vue Web UI build ${{ github.run_number }}" \
+            --notes "Build of the Vue web UI from the \`vue-based-ui\` branch (commit ${GITHUB_SHA::7})."
+
+      # In addition to the immutable per-build tag above, maintain a rolling
+      # "vue-ui-latest" release that always points at the newest build, giving a
+      # STABLE download URL that never changes:
+      #   https://github.com/<owner>/<repo>/releases/download/vue-ui-latest/app.html
+      # Delete + recreate so the tag tracks the latest commit and assets are
+      # replaced wholesale each run.
+      - name: Update rolling "latest" pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete vue-ui-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create vue-ui-latest "$GITHUB_WORKSPACE"/ui-dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Vue Web UI — latest build" \
+            --notes "Rolling pointer to the newest build (build ${{ github.run_number }}, commit ${GITHUB_SHA::7}). For a pinned build, use the vue-ui-<n> releases."
