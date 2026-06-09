@@ -50,7 +50,7 @@ jobs:
                     echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}-${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
                  fi
               fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -74,7 +74,7 @@ jobs:
       # The firmware build runs build_app.py, which builds the Vue web UI in
       # SmartEVSE-3/app and packs it into the image. That needs Node.js + npm.
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
