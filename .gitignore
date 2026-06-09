@@ -9,3 +9,5 @@ sdkconfig.*
 .DS_Store
 */.DS_Store
 .idea
+SmartEVSE-3/app/.vite/deps/_metadata.json
+SmartEVSE-3/app/.vite/deps/package.json

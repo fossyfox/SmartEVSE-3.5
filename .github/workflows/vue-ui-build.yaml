@@ -1,0 +1,61 @@
+name: Build Vue Web UI
+
+# Builds the single-file Vue web UI (SmartEVSE-3/app) on every push/merge to the
+# vue-based-ui branch and publishes the packed files — the same set build_app.py
+# copies into data/ — as both a downloadable run artifact and a rolling
+# pre-release ("vue-ui-latest") so there's a stable download URL.
+on:
+  push:
+    branches:
+      - vue-based-ui
+    # Only rebuild when the UI sources actually change.
+    paths:
+      - 'SmartEVSE-3/app/**'
+      - '.github/workflows/vue-ui-build.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SmartEVSE-3/app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: SmartEVSE-3/app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build single-file UI
+        run: npm run build:singlefile
+
+      # Mirror exactly what build_app.py copies into data/: the bundle becomes
+      # app.html, the rest are copied verbatim. (favicon.ico is a tracked data/
+      # asset, not a build output, so it's not included here.)
+      - name: Assemble data/ files
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/ui-dist"
+          cp dist/index.html             "$GITHUB_WORKSPACE/ui-dist/app.html"
+          cp dist/manifest.json          "$GITHUB_WORKSPACE/ui-dist/manifest.json"
+          cp dist/app-sw.js              "$GITHUB_WORKSPACE/ui-dist/app-sw.js"
+          cp dist/apple-touch-icon.png   "$GITHUB_WORKSPACE/ui-dist/apple-touch-icon.png"
+          cp dist/pwa-192.png            "$GITHUB_WORKSPACE/ui-dist/pwa-192.png"
+          cp dist/pwa-512.png            "$GITHUB_WORKSPACE/ui-dist/pwa-512.png"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vue-ui-data
+          path: ui-dist/*
+          retention-days: 60
+          if-no-files-found: error
